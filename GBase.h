@@ -68,6 +68,7 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdint.h>
+#include <inttypes.h>
 #include <stdarg.h>
 #include <type_traits>
 
@@ -80,13 +81,12 @@ typedef uint16_t uint16;
 
 typedef unsigned char uchar;
 typedef uint8_t byte;
-typedef unsigned int uint;
 
 typedef void* pointer;
 
 
 #ifndef MAXUINT
-#define MAXUINT ((unsigned int)-1)
+#define MAXUINT INT64_MAX
 #endif
 
 #ifndef MAXINT
@@ -94,7 +94,7 @@ typedef void* pointer;
 #endif
 
 #ifndef MAX_UINT
-#define MAX_UINT ((unsigned int)-1)
+#define MAX_UINT INT64_MAX
 #endif
 
 #ifndef MAX_INT
@@ -377,14 +377,14 @@ int djb_hash(const char* cp);
 //---- generic base GSeg : genomic segment (interval) --
 // coordinates are considered 1-based (so 0 is invalid)
 struct GSeg {
-  uint start; //start<end always!
-  uint end;
-  GSeg(uint s=0,uint e=0) {
+  int64_t start; //start<end always!
+  int64_t end;
+  GSeg(int64_t s=0, int64_t e=0) {
     if (s>e) { start=e;end=s; }
         else { start=s;end=e; }
   }
   //check for overlap with other segment
-  uint len() { return end-start+1; }
+  int64_t len() { return end-start+1; }
   bool overlap(GSeg* d) {
      return (start<=d->end && end>=d->start);
   }
@@ -393,21 +393,21 @@ struct GSeg {
      return (start<=d.end && end>=d.start);
   }
 
-  bool overlap(GSeg& d, int fuzz) {
+  bool overlap(GSeg& d, int64_t fuzz) {
      return (start<=d.end+fuzz && end+fuzz>=d.start);
   }
 
-  bool overlap(uint x) {
+  bool overlap(int64_t x) {
 	return (start<=x && x<=end);
   }
 
-  bool overlap(uint s, uint e) {
+  bool overlap(int64_t s, int64_t e) {
      if (s>e) { Gswap(s,e); }
      return (start<=e && end>=s);
   }
 
   //return the length of overlap between two segments
-  int overlapLen(GSeg* r) {
+  int64_t overlapLen(GSeg* r) {
      if (start<r->start) {
         if (r->start>end) return 0;
         return (r->end>end) ? end-r->start+1 : r->end-r->start+1;
@@ -416,9 +416,9 @@ struct GSeg {
         if (start>r->end) return 0;
         return (r->end<end)? r->end-start+1 : end-start+1;
         }
-     }
+  }
   // refstart = overlap start in ref coordinate space (1-based)
-  int overlapLen(uint rstart, uint rend, int* refstart=NULL) {
+  int64_t overlapLen(int64_t rstart, int64_t rend, int64_t* refstart=NULL) {
      if (rstart>rend) { Gswap(rstart,rend); }
      if (refstart) *refstart=0;
      if (start<rstart) {
@@ -431,6 +431,12 @@ struct GSeg {
         if (refstart) *refstart=(start-rstart)+1;
         return (rend<end)? rend-start+1 : end-start+1;
         }
+  }
+  int64_t overlapLen(int64_t rstart, int64_t rend, int* refstart) {
+     int64_t refstart64=0;
+     int64_t ovlen=overlapLen(rstart, rend, &refstart64);
+     if (refstart) *refstart=(int)refstart64;
+     return ovlen;
   }
 
   bool contains(GSeg* s) {
@@ -448,17 +454,17 @@ struct GSeg {
   }
 
   //fuzzy coordinate matching:
-  bool coordMatch(GSeg* s, uint fuzz=0) { //caller must check for s!=NULL
+  bool coordMatch(GSeg* s, int64_t fuzz=0) { //caller must check for s!=NULL
     if (fuzz==0) return (start==s->start && end==s->end);
-    uint sd = (start>s->start) ? start-s->start : s->start-start;
-    uint ed = (end>s->end) ? end-s->end : s->end-end;
+    int64_t sd = (start>s->start) ? start-s->start : s->start-start;
+    int64_t ed = (end>s->end) ? end-s->end : s->end-end;
     return (sd<=fuzz && ed<=fuzz);
   }
-  void expand(int by) { //expand in both directions
+  void expand(int64_t by) { //expand in both directions
 	  start-=by;
 	  end+=by;
   }
-  void expandInclude(uint rstart, uint rend) { //expand to include given coordinates
+  void expandInclude(int64_t rstart, int64_t rend) { //expand to include given coordinates
 	 if (rstart>rend) { Gswap(rstart,rend); }
 	 if (rstart<start) start=rstart;
 	 if (rend>end) end=rend;
@@ -488,7 +494,7 @@ struct GRangeParser: GSeg {
 //which can only grow (reallocate) as needed
 
 //optimize index test
-#define GDynArray_INDEX_ERR "Error: use of index (%d) in GDynArray of size %d!\n"
+#define GDynArray_INDEX_ERR "Error: use of index (%" PRId64 ") in GDynArray of size %" PRId64 "!\n"
  #if defined(NDEBUG) || defined(NODEBUG) || defined(_NDEBUG) || defined(NO_DEBUG)
  #define GDynArray_TEST_INDEX(x)
 #else
@@ -496,8 +502,8 @@ struct GRangeParser: GSeg {
  if (fCount==0 || x>=fCount) GError(GDynArray_INDEX_ERR, x, fCount)
 #endif
 
-#define GDynArray_MAXCOUNT UINT_MAX-1
-#define GDynArray_NOIDX UINT_MAX
+#define GDynArray_MAXCOUNT (INT64_MAX-1)
+#define GDynArray_NOIDX INT64_MAX
 
 //basic dynamic array (vector) template for simple/primitive types or structs
 //Warning: uses malloc so it will never call the item's default constructor when growing
@@ -506,9 +512,9 @@ template<class OBJ> class GDynArray {
  protected:
 	bool byptr; //in-place copy (pointer) takeover of existing OBJ[]
     OBJ *fArray;
-    uint fCount;
-    uint fCapacity; // size of allocated memory
-	const static uint dyn_array_defcap = 16; // initial capacity (in elements)
+    int64_t fCount;
+    int64_t fCapacity; // size of allocated memory
+	const static int64_t dyn_array_defcap = 16; // initial capacity (in elements)
  public:
     GDynArray(int initcap=dyn_array_defcap):byptr(false), fArray(NULL), fCount(0),
 	     fCapacity(initcap) { // constructor
@@ -520,7 +526,7 @@ template<class OBJ> class GDynArray {
         GMALLOC(fArray, sizeof(OBJ)*a.fCapacity);
         memcpy(fArray, a.fArray, sizeof(OBJ)* a.fCapacity);
     }
-    GDynArray(OBJ* ptr, uint pcap):byptr(true), fArray(ptr), fCount(0), fCapacity(pcap) {
+    GDynArray(OBJ* ptr, int64_t pcap):byptr(true), fArray(ptr), fCount(0), fCapacity(pcap) {
     	//this will never deallocate the passed pointer
     }
 
@@ -537,7 +543,7 @@ template<class OBJ> class GDynArray {
         return *this;
     }
 
-    OBJ& operator[] (uint idx) {// get array item
+    OBJ& operator[] (int64_t idx) {// get array item
     	GDynArray_TEST_INDEX(idx);
     	return fArray[idx];
     }
@@ -554,19 +560,19 @@ template<class OBJ> class GDynArray {
     	if ((++fCount) > fCapacity) Grow(); \
     	fArray[fCount-1] = item;
 
-    uint Add(OBJ* item) { // Add item to the end of array
+    int64_t Add(OBJ* item) { // Add item to the end of array
       //element given by pointer
       if (item==NULL) return GDynArray_NOIDX;
   	  GDynArray_ADD( (*item) );
   	  return (fCount-1);
     }
 
-    uint Add(OBJ item) { // Add OBJ copy to the end of array
+    int64_t Add(OBJ item) { // Add OBJ copy to the end of array
 	  GDynArray_ADD(item);
 	  return (fCount-1);
     }
 
-    uint Push(OBJ item) { //same as Add
+    int64_t Push(OBJ item) { //same as Add
     	GDynArray_ADD(item);
     	return (fCount-1);
     }
@@ -577,16 +583,16 @@ template<class OBJ> class GDynArray {
     	return fArray[fCount];
     }
 
-    uint Count() { return fCount; } // get size of array (elements)
-    uint Capacity() { return fCapacity; }
-    void growTo(uint newcap) {
+    int64_t Count() { return fCount; } // get size of array (elements)
+    int64_t Capacity() { return fCapacity; }
+    void growTo(int64_t newcap) {
     	if (newcap==0) { Clear(); return; }
     	if (newcap <= fCapacity) return; //never shrink! (use Pack() for shrinking)
     	GREALLOC(fArray, newcap*sizeof(OBJ));
     	fCapacity=newcap;
     }
 
-    void append(OBJ* arr, uint count) {
+    void append(OBJ* arr, int64_t count) {
     	//fast adding of a series of objects
     	growTo(fCount+count);
     	memcpy(fArray+fCount, arr, count*sizeof(OBJ));
@@ -625,14 +631,14 @@ template<class OBJ> class GDynArray {
 
     inline void Shrink() { Pack(); }
 
-    void Delete(uint idx) {
+    void Delete(int64_t idx) {
 	  GDynArray_TEST_INDEX(idx);
 	  --fCount;
 	  if (idx<fCount)
 		  memmove(&fArray[idx], &fArray[idx+1], (fCount-idx)*sizeof(OBJ));
     }
 
-    inline void Remove(uint idx) { Delete(idx); }
+    inline void Remove(int64_t idx) { Delete(idx); }
 
     void Clear() { // clear array, shrinking its allocated memory
     	fCount = 0;
@@ -755,9 +761,9 @@ bool parseDouble(char* &p, double& v); //just an alias for parseNumber
 bool parseFloat(char* &p, float& v);
 
 bool strToInt(char* p, int& i);
-bool strToUInt(char* p, uint& i);
+bool strToUInt(char* p, int64_t& i);
 bool parseInt(char* &p, int& i); //advance pointer p after the number
-bool parseUInt(char* &p, uint& i); //advance pointer p after the number
-bool parseHex(char* &p,  uint& i);
+bool parseUInt(char* &p, int64_t& i); //advance pointer p after the number
+bool parseHex(char* &p,  int64_t& i);
 
 #endif /* G_BASE_DEFINED */

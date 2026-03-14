@@ -53,4 +53,8 @@ run_test "annotation.gtf transcript-seq" tests/wrk/annotation_gtf.spliced.tsv \
 run_test "annotation.gtf.gz transcript-seq" tests/wrk/annotation_gtf_gz.spliced.tsv \
   tests/expected/annotation_gtf.spliced.tsv transcript-seq tests/data/annotation.gtf.gz tests/wrk/genome.fa
 
+if [[ "${GCLIB_RUN_LARGE_TESTS:-0}" == "1" ]]; then
+  ./run_large_tests.sh || err_exit "large-offset test suite failed"
+fi
+
 echo "All tests passed successfully!"

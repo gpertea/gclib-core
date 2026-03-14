@@ -4,9 +4,9 @@ GffNames* GffObj::names=NULL;
 //global set of feature names, attribute names etc.
 // -- common for all GffObjs in current application!
 
-const uint GFF_MAX_LOCUS = 7000000; //longest known gene in human is ~2.2M, UCSC claims a gene for mouse of ~ 3.1 M
-const uint GFF_MAX_EXON  =   30000; //longest known exon in human is ~11K
-const uint GFF_MAX_INTRON= 6000000; //Ensembl shows a >5MB mouse intron
+const int64_t GFF_MAX_LOCUS = 7000000; //longest known gene in human is ~2.2M, UCSC claims a gene for mouse of ~ 3.1 M
+const int64_t GFF_MAX_EXON  =   30000; //longest known exon in human is ~11K
+const int64_t GFF_MAX_INTRON= 6000000; //Ensembl shows a >5MB mouse intron
 const int  GFF_MIN_INTRON = 4; //for mergeCloseExons option
 //bool gff_show_warnings = false; //global setting, set by GffReader->showWarnings()
 int gff_fid_mRNA=0; //mRNA (has CDS)
@@ -364,8 +364,8 @@ BEDLine::BEDLine(GffReader* reader, const char* l): skip(true), dupline(NULL), l
 			  return;
 		  }
 		  exonstart+=fstart;
-		  uint exonend=exonstart+exonlen-1;
-		  if ((uint)exonstart>fend || exonend>fend) {
+		  int64_t exonend=exonstart+exonlen-1;
+		  if ((int64_t)exonstart>fend || exonend>fend) {
 			  GMessage("Warning: BED exon %d-%d is outside record boundary at line:\n%s\n",exonstart,exonend, l);
 			  return;
 		  }
@@ -422,7 +422,7 @@ bool GffLine::parseSegmentList(GVec<GSeg>& segs, char* str) {
 		strsplit(str, ss, ',');
 		GSeg seg;
 		segs_valid=true;
-		for (uint i=0;i<ss.Count();++i) {
+		for (int64_t i=0;i<ss.Count();++i) {
 			char* p=strchr(ss[i], '-');
 			if (p==NULL) {
 				segs_valid=false;
@@ -438,8 +438,8 @@ bool GffLine::parseSegmentList(GVec<GSeg>& segs, char* str) {
 				segs_valid=false;
 				break;
 			}
-			if (xstart>xend) { seg.start=(uint)xend;seg.end=(uint)xstart; }
-			else    { seg.start=(uint)xstart;seg.end=(uint)xend; }
+			if (xstart>xend) { seg.start=(int64_t)xend;seg.end=(int64_t)xstart; }
+			else    { seg.start=(int64_t)xstart;seg.end=(int64_t)xend; }
 			segs.Add(seg);
 		} //parse all CDS segments
 		if (segs_valid) {
@@ -891,14 +891,14 @@ GffLine::GffLine(GffReader* reader, const char* l): _parents(NULL), _parents_len
 }
 
 //FIXME - this should only be used AFTER finalize() was called, and must have cdss=NULL of course
-void GffObj::setCDS(uint cd_start, uint cd_end, char phase) {
+void GffObj::setCDS(int64_t cd_start, int64_t cd_end, char phase) {
   if (cd_start<this->start) {
-	  GMessage("Warning: setCDS() called for %s with an out of bounds CDS start %d!\n",
+	  GMessage("Warning: setCDS() called for %s with an out of bounds CDS start %" PRId64 "!\n",
 			  gffID, cd_start);
 	  return;
   }
   if (cd_end>this->end) {
-	  GMessage("Warning: setCDS() called for %s with an out of bounds CDS end %d!\n",
+	  GMessage("Warning: setCDS() called for %s with an out of bounds CDS end %" PRId64 "!\n",
 			  gffID, cd_end);
 	  return;
   }
@@ -915,16 +915,16 @@ void GffObj::setCDS(uint cd_start, uint cd_end, char phase) {
 
 void GffObj::setCDS(GffObj* t) {
 	//copy the cdss as well
-	uint cd_start=t->CDstart;
-	uint cd_end=t->CDend;
-	uint phase=t->CDphase;
+	int64_t cd_start=t->CDstart;
+	int64_t cd_end=t->CDend;
+	int64_t phase=t->CDphase;
 	if (cd_start<this->start) {
-		  GMessage("Warning: setCDS() called for %s with an out of bounds CDS start %d!\n",
+		  GMessage("Warning: setCDS() called for %s with an out of bounds CDS start %" PRId64 "!\n",
 				  gffID, cd_start);
 		  return;
 	}
 	if (cd_end>this->end) {
-		  GMessage("Warning: setCDS() called for %s with an out of bounds CDS end %d!\n",
+		  GMessage("Warning: setCDS() called for %s with an out of bounds CDS end %" PRId64 "!\n",
 				  gffID, cd_end);
 		  return;
 	}
@@ -1037,7 +1037,7 @@ int GffObj::addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override)
 	return eidx;
 }
 
-int GffObj::exonOverlapIdx(GList<GffExon>& segs, uint s, uint e, int* ovlen, int start_idx) {
+int GffObj::exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int* ovlen, int start_idx) {
 	//return the exons' index for the overlapping OR ADJACENT exon
 	//ovlen, if given, will return the overlap length
 	//if (s>e) Gswap(s,e);
@@ -1062,7 +1062,7 @@ void GffObj::transferCDS(GffExon* cds) {
 	 if (CDstart==0 || CDstart>cds->start) CDstart=cds->start;
 }
 
-int GffObj::addExon(uint segstart, uint segend, int8_t exontype, char phase, GffScore exon_score, GList<GffExon>* segs) {
+int GffObj::addExon(int64_t segstart, int64_t segend, int8_t exontype, char phase, GffScore exon_score, GList<GffExon>* segs) {
    if (segstart>segend) { Gswap(segstart, segend); }
    if (segs==NULL) segs=&exons;
 	if (exontype!=exgffNone) { //check for overlaps between exon/CDS-type segments
@@ -1111,7 +1111,7 @@ int GffObj::addExon(uint segstart, uint segend, int8_t exontype, char phase, Gff
    return eidx;
 }
 
-void GffObj::expandSegment(GList<GffExon>& segs, int oi, uint segstart, uint segend, int8_t exontype) {
+void GffObj::expandSegment(GList<GffExon>& segs, int oi, int64_t segstart, int64_t segend, int8_t exontype) {
   //oi is the index of the *first* overlapping segment found that must be enlarged
   covlen-=segs[oi]->len();
   if (segstart<segs[oi]->start)
@@ -1504,7 +1504,7 @@ bool GffReader::pFind(const char* id, GPVec<GffObj>*& glst) {
 }
 
 GffObj* GffReader::gfoFind(const char* id, GPVec<GffObj>*& glst,
-		const char* ctg, char strand, uint start, uint end) {
+		const char* ctg, char strand, int64_t start, int64_t end) {
 	GPVec<GffObj>* gl=NULL;
 	if (glst) {
 		gl=glst;
@@ -2049,7 +2049,7 @@ bool GffObj::reduceExonAttrs(GList<GffExon>& segs) {
 	return attrs_discarded;
 }
 //return the segs index of segment containing coord:
-int GffObj::whichExon(uint coord, GList<GffExon>* segs) {
+int GffObj::whichExon(int64_t coord, GList<GffExon>* segs) {
 	 //segs MUST be sorted by GSeg order (start coordinate)
 	if (segs==NULL) segs=&exons;
 	if (segs->Count()==0) return -1;
@@ -2263,7 +2263,7 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 		if (gfr->merge_CloseExons) {
 			for (int i=0;i<exons.Count()-1;i++) {
 				int ni=i+1;
-				uint mend=exons[i]->end;
+				int64_t mend=exons[i]->end;
 				while (ni<exons.Count()) {
 					int dist=(int)(exons[ni]->start-mend-1); //<0 = overlap, 0 = adjacent, >0 = bases apart
 					if (dist>GFF_MIN_INTRON) break; //no merging with next segment
@@ -2427,7 +2427,7 @@ void GffObj::printExonList(FILE* fout) {
 	//print comma delimited list of exon intervals
 	for (int i=0;i<exons.Count();++i) {
 		if (i>0) fprintf(fout, ",");
-		fprintf(fout, "%d-%d",exons[i]->start, exons[i]->end);
+		fprintf(fout, "%" PRId64 "-%" PRId64, exons[i]->start, exons[i]->end);
 	}
 }
 
@@ -2438,7 +2438,7 @@ void GffObj::printCDSList(FILE* fout) {
 	this->getCDSegs(cds); //also uses/prepares the CDS phase for each CDS segment
 	for (int i=0;i<cds.Count();i++) {
 		if (i>0) fprintf(fout, ",");
-		fprintf(fout, "%d-%d", cds[i].start, cds[i].end);
+		fprintf(fout, "%" PRId64 "-%" PRId64, cds[i].start, cds[i].end);
 	}
 }
 
@@ -2457,21 +2457,21 @@ void GffObj::printBED(FILE* fout, bool cvtChars) {
  const int DBUF_LEN=1024; //there should not be attribute values longer than 1K!
  char dbuf[DBUF_LEN];
 
- int cd_start=CDstart>0? CDstart-1 : start-1;
- int cd_end=CDend>0 ? CDend : end;
+ int64_t cd_start=CDstart>0? CDstart-1 : start-1;
+ int64_t cd_end=CDend>0 ? CDend : end;
  char cdphase=(CDphase>0) ? CDphase : '0';
- fprintf(fout, "%s\t%d\t%d\t%s\t%d\t%c\t%d\t%d\t%c,0,0", getGSeqName(), start-1, end, getID(),
+ fprintf(fout, "%s\t%" PRId64 "\t%" PRId64 "\t%s\t%d\t%c\t%" PRId64 "\t%" PRId64 "\t%c,0,0", getGSeqName(), start-1, end, getID(),
 		 100, strand, cd_start, cd_end, cdphase);
  if (exons.Count()>0) {
 	 int i;
-	 fprintf(fout, "\t%d\t", exons.Count());
+	 fprintf(fout, "\t%" PRId64 "\t", exons.Count());
 	 for (i=0;i<exons.Count();++i)
-		 fprintf(fout,"%d,",exons[i]->len());
+		 fprintf(fout,"%" PRId64 ",", exons[i]->len());
 	 fprintf(fout, "\t");
 	 for (i=0;i<exons.Count();++i)
-		 fprintf(fout,"%d,",exons[i]->start-start);
+		 fprintf(fout,"%" PRId64 ",", exons[i]->start-start);
  } else { //no-exon feature(!), shouldn't happen
-	 fprintf(fout, "\t1\t%d,\t0,", len());
+	 fprintf(fout, "\t1\t%" PRId64 ",\t0,", len());
  }
  //now add the GFF3 attributes for in the 13th field
  int numattrs=0;
@@ -2747,8 +2747,8 @@ char* GffObj::getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst) {
 	 covlen-=padLeft+padRight;
  }
 
-char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_start, uint* cds_end,
-          GMapSegments* seglst, bool cds_open) {
+char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds_start, int64_t* cds_end,
+                         GMapSegments* seglst, bool cds_open) {
 	//cds_open only makes sense when CDSonly is true by overriding CDS 3'end such that the end of
 	//the sequence beyond the 3' CDS end is also returned (the 3' UTR is appended to the CDS)
   if (CDSonly && CDstart==0) {
@@ -2771,13 +2771,13 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
   if (fspan<(int)(end-start+1)) {
 	  //special case: stop coordinate was extended past the gseq length, must adjust
      int endadj=end-start+1-fspan;
-     uint prevend=end;
+     int64_t prevend=end;
      end-=endadj;
      if (CDend>end) CDend=end;
      if (xsegs->Last()->end>end) {
          xsegs->Last()->end=end; //this could be trouble if exon start is also > end
          if (xsegs->Last()->start>xsegs->Last()->end) {
-            GError("GffObj::getSpliced() error: improper genomic coordinate %d on %s for %s\n",
+            GError("GffObj::getSpliced() error: improper genomic coordinate %" PRId64 " on %s for %s\n",
                   prevend,getGSeqName(), getID());
          }
          covlen-=endadj;
@@ -2785,13 +2785,13 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
   }
   char* spliced=NULL;
   GMALLOC(spliced, covlen+1); //IMPORTANT: covlen must be correct here!
-  uint g_start=0, g_end=0;
+  int64_t g_start=0, g_end=0;
   int cdsadj=0;
   if (CDphase=='1' || CDphase=='2') {
       cdsadj=CDphase-'0';
   }
-  uint CDS_start=CDstart;
-  uint CDS_stop=CDend;
+  int64_t CDS_start=CDstart;
+  int64_t CDS_stop=CDend;
   if (cdsadj>0) {
      if (strand=='-') CDS_stop-=cdsadj;
      else CDS_start+=cdsadj;
@@ -2800,8 +2800,8 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
     g_start=CDS_start;
     g_end=CDS_stop;
     if (g_end-g_start<3)
-    	 GMessage("Warning: CDS %d-%d too short for %s, check your data.\n",
-    			 g_start, g_end, gffID);
+      GMessage("Warning: CDS %" PRId64 "-%" PRId64 " too short for %s, check your data.\n",
+               g_start, g_end, gffID);
   } else { //all exon content, not just CDS
     g_start=xsegs->First()->start;
     g_end=xsegs->Last()->end;
@@ -2815,8 +2815,8 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
     	//CDS_start=g_start;
     }
     for (int x=xsegs->Count()-1;x>=0;x--) {
-       uint sgstart=xsegs->Get(x)->start;
-       uint sgend=xsegs->Get(x)->end;
+       int64_t sgstart=xsegs->Get(x)->start;
+       int64_t sgend=xsegs->Get(x)->end;
        if (g_end<sgstart || g_start>sgend) continue;
        if (g_start>=sgstart && g_start<=sgend)
           sgstart=g_start; //3' end within this segment
@@ -2824,7 +2824,7 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
           sgend=g_end; //5' end within this segment
        if (seglst!=NULL)
           seglst->add(s+1,s+1+sgend-sgstart,sgend,sgstart);
-       for (uint i=sgend;i>=sgstart;i--) {
+       for (int64_t i=sgend;i>=sgstart;i--) {
          spliced[s] = ntComplement(gsubseq[i-start]);
          s++;
        }//for each nt
@@ -2845,8 +2845,8 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
       	//CDS_stop=g_end;
     }
     for (int x=0;x<xsegs->Count();x++) {
-      uint sgstart=xsegs->Get(x)->start;
-      uint sgend=xsegs->Get(x)->end;
+      int64_t sgstart=xsegs->Get(x)->start;
+      int64_t sgend=xsegs->Get(x)->end;
       if (g_end<sgstart || g_start>sgend) continue;
       if (g_start>=sgstart && g_start<=sgend)
             sgstart=g_start; //seqstart within this segment
@@ -2854,7 +2854,7 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
             sgend=g_end; //seqend within this segment
       if (seglst!=NULL)
           seglst->add(s+1,s+1+sgend-sgstart, sgstart, sgend);
-      for (uint i=sgstart;i<=sgend;i++) {
+      for (int64_t i=sgstart;i<=sgend;i++) {
           spliced[s]=gsubseq[i-start];
           s++;
       }//for each nt
@@ -2876,7 +2876,7 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, uint* cds_st
 
 void GffObj::printSummary(FILE* fout) {
  if (fout==NULL) fout=stdout;
- fprintf(fout, "%s\t%c\t%d\t%d\t", gffID,
+ fprintf(fout, "%s\t%c\t%" PRId64 "\t%" PRId64 "\t", gffID,
           strand, start, end);
  gscore.print(fout);
  fprintf(fout, "\n");
@@ -2920,7 +2920,7 @@ void GffObj::decodeHexChars(char* dbuf, const char* s, int maxlen) {
 }
 
 void GffObj::printGTab(FILE* fout, char** extraAttrs) {
-	fprintf(fout, "%s\t%c\t%d\t%d\t%s\t", this->getGSeqName(), this->strand,
+	fprintf(fout, "%s\t%c\t%" PRId64 "\t%" PRId64 "\t%s\t", this->getGSeqName(), this->strand,
 			this->start, this->end, this->getID());
 	if (exons.Count()) printExonList(fout);
 	else fprintf(fout, ".");
@@ -2949,7 +2949,7 @@ void GffObj::printGxfExon(FILE* fout, const char* tlabel, const char* gseqname, 
   const char* attrval=NULL;
   if (gff3) {
     fprintf(fout,
-      "%s\t%s\t%s\t%d\t%d\t%s\t%c\t%c\tParent=%s",
+      "%s\t%s\t%s\t%" PRId64 "\t%" PRId64 "\t%s\t%c\t%c\tParent=%s",
       gseqname, tlabel, ftype, exon->start, exon->end, dbuf, strand,
 	  exon->phase, gffID);
     if (exon->attrs!=NULL) {
@@ -2967,7 +2967,7 @@ void GffObj::printGxfExon(FILE* fout, const char* tlabel, const char* gseqname, 
     fprintf(fout, "\n");
     } //GFF3
   else {//GTF
-    fprintf(fout, "%s\t%s\t%s\t%d\t%d\t%s\t%c\t%c\ttranscript_id \"%s\";",
+    fprintf(fout, "%s\t%s\t%s\t%" PRId64 "\t%" PRId64 "\t%s\t%c\t%c\ttranscript_id \"%s\";",
            gseqname, tlabel, ftype, exon->start, exon->end, dbuf, strand, exon->phase, gffID);
     if (geneID)
       fprintf(fout," gene_id \"%s\";",geneID);
@@ -3121,13 +3121,13 @@ void GffObj::printGxf(FILE* fout, GffPrintMode gffp,
  gscore.sprint(dbuf);
  if (gffp<=pgtfBoth && gffp>=pgtfAny) { //GTF output
 	   fprintf(fout,
-	     "%s\t%s\ttranscript\t%d\t%d\t%s\t%c\t.\ttranscript_id \"%s\"",
+	     "%s\t%s\ttranscript\t%" PRId64 "\t%" PRId64 "\t%s\t%c\t.\ttranscript_id \"%s\"",
 	     gseqname, tlabel, start, end, dbuf, strand, gffID);
 	   printAttrs(fout, "; ", true, cvtChars);
 	   fprintf(fout,"\n");
  }
  else if (gff3) { //print GFF3 transcript line:
-   uint pstart, pend;
+   int64_t pstart, pend;
    if (gffp==pgffCDS) {
       pstart=CDstart;
       pend=CDend;
@@ -3136,7 +3136,7 @@ void GffObj::printGxf(FILE* fout, GffPrintMode gffp,
    //const char* ftype=isTranscript() ? "mRNA" : getFeatureName();
    const char* ftype=getFeatureName();
    fprintf(fout,
-     "%s\t%s\t%s\t%d\t%d\t%s\t%c\t.\tID=%s",
+     "%s\t%s\t%s\t%" PRId64 "\t%" PRId64 "\t%s\t%c\t.\tID=%s",
      gseqname, tlabel, ftype, pstart, pend, dbuf, strand, gffID);
    bool parentPrint=false;
    if (gfparent!=NULL && gffp!=pgffTLF) {
@@ -3149,20 +3149,20 @@ void GffObj::printGxf(FILE* fout, GffPrintMode gffp,
            if (parent->isGene()) parentPrint=true;
    }
    if (gffp==pgffTLF) {
-	   fprintf(fout, ";exonCount=%d",exons.Count());
+	   fprintf(fout, ";exonCount=%" PRId64, exons.Count());
 	   if (exons.Count()>0)
-		   fprintf(fout, ";exons=%d-%d", exons[0]->start, exons[0]->end);
+		   fprintf(fout, ";exons=%" PRId64 "-%" PRId64, exons[0]->start, exons[0]->end);
 	   for (int i=1;i<exons.Count();++i) {
-		   fprintf(fout, ",%d-%d",exons[i]->start, exons[i]->end);
+		   fprintf(fout, ",%" PRId64 "-%" PRId64, exons[i]->start, exons[i]->end);
 	   }
    }
    if (CDstart>0 && (gffp==pgffTLF || !showCDS)) {
-	   if (cdss==NULL) fprintf(fout,";CDS=%d:%d",CDstart,CDend);
+	   if (cdss==NULL) fprintf(fout,";CDS=%" PRId64 ":%" PRId64, CDstart, CDend);
 	   else {
 		   fprintf(fout, ";CDS=");
 		   for (int i=0;i<cdss->Count();++i) {
 			   if (i>0) fprintf(fout, ",");
-			   fprintf(fout, "%d-%d", (*cdss)[i]->start, (*cdss)[i]->end);
+			   fprintf(fout, "%" PRId64 "-%" PRId64, (*cdss)[i]->start, (*cdss)[i]->end);
 		   }
 	   }
    }
@@ -3232,8 +3232,8 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
   }
   if (strand=='-') {
      for (int x=exons.Count()-1;x>=0;x--) {
-        uint sgstart=exons[x]->start;
-        uint sgend=exons[x]->end;
+        int64_t sgstart=exons[x]->start;
+        int64_t sgend=exons[x]->end;
         if (CDend<sgstart || CDstart>sgend) continue;
         if (CDstart>=sgstart && CDstart<=sgend)
               sgstart=CDstart; //cdstart within this segment
@@ -3252,8 +3252,8 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
      } // - strand
     else { // + strand
      for (int x=0;x<exons.Count();x++) {
-       uint sgstart=exons[x]->start;
-       uint sgend=exons[x]->end;
+       int64_t sgstart=exons[x]->start;
+       int64_t sgend=exons[x]->end;
        if (CDend<sgstart || CDstart>sgend) continue;
        if (CDstart>=sgstart && CDstart<=sgend)
              sgstart=CDstart; //seqstart within this segment
@@ -3471,7 +3471,7 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			}
 			// check if it's a potential pre-mRNA transcript
 			// (if overlaps this intron at least 10 bases)
-			uint introvl = mseg.overlapLen(r.exons[j]->end + 1, r.exons[j + 1]->start - 1);
+			int64_t introvl = mseg.overlapLen(r.exons[j]->end + 1, r.exons[j + 1]->start - 1);
 			// iovlen+=introvl;
 			if (introvl >= 10 && mseg.len() > introvl + 10)
 			{
@@ -3580,10 +3580,10 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 	// check for intron matches
 	while (i <= imax && j <= jmax)
 	{
-		uint mstart = m.exons[i - 1]->end; // qry intron start-end
-		uint mend = m.exons[i]->start;
-		uint rstart = r.exons[j - 1]->end; // ref intron start-end
-		uint rend = r.exons[j]->start;
+		int64_t mstart = m.exons[i - 1]->end; // qry intron start-end
+		int64_t mend = m.exons[i]->start;
+		int64_t rstart = r.exons[j - 1]->end; // ref intron start-end
+		int64_t rend = r.exons[j]->start;
 		if (rend < mstart)
 		{ // qry intron starts after ref intron ends
 			if (!intron_conflict && r.exons[j]->overlap(mstart + 1, mend - 1))

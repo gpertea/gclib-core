@@ -6,7 +6,7 @@
 /// bitCount_32 - this function counts the number of set bits in a value.
 /// Ex. CountPopulation(0xF000F000) = 8
 /// Returns 0 if the word is zero.
-inline uint bitCount_32(uint32_t Value) {
+inline int64_t bitCount_32(uint32_t Value) {
 #if __GNUC__ >= 4
     return __builtin_popcount(Value);
 #else
@@ -18,14 +18,14 @@ inline uint bitCount_32(uint32_t Value) {
 
 /// bitCount_64 - this function counts the number of set bits in a value,
 /// (64 bit edition.)
-inline uint bitCount_64(uint64_t Value) {
+inline int64_t bitCount_64(uint64_t Value) {
 #if __GNUC__ >= 4
     return __builtin_popcountll(Value);
 #else
     uint64_t v = Value - ((Value >> 1) & 0x5555555555555555ULL);
     v = (v & 0x3333333333333333ULL) + ((v >> 2) & 0x3333333333333333ULL);
     v = (v + (v >> 4)) & 0x0F0F0F0F0F0F0F0FULL;
-    return uint((uint64_t)(v * 0x0101010101010101ULL) >> 56);
+    return int64_t((uint64_t)(v * 0x0101010101010101ULL) >> 56);
 #endif
   }
 
@@ -68,21 +68,21 @@ inline unsigned bitCountTrailingZeros_64(uint64_t Value) {
 class GBitVec {
   typedef unsigned long BitWord;
 
-  enum { BITWORD_SIZE = (uint)sizeof(BitWord) * CHAR_BIT };
+  enum { BITWORD_SIZE = int64_t(sizeof(BitWord) * CHAR_BIT) };
 
   BitWord  *fBits;        // Actual bits.
-  uint Size;         // Size of GBitVec in bits.
-  uint Capacity;     // Size of allocated memory in BitWord.
+  int64_t Size;         // Size of GBitVec in bits.
+  int64_t Capacity;     // Size of allocated memory in BitWord.
 
 public:
   // Encapsulation of a single bit.
   class GBitRef {
     friend class GBitVec;
     BitWord *WordRef;
-    uint BitPos;
+    int64_t BitPos;
     GBitRef();  // Undefined
   public:
-    GBitRef(GBitVec &b, uint Idx) {
+    GBitRef(GBitVec &b, int64_t Idx) {
       WordRef = &b.fBits[Idx / BITWORD_SIZE];
       BitPos = Idx % BITWORD_SIZE;
     }
@@ -115,7 +115,7 @@ public:
 
   /// GBitVec ctor - Creates a GBitVec of specified number of bits. All
   /// bits are initialized to the specified value.
-  explicit GBitVec(uint bitsize, bool value = false) : Size(bitsize) {
+  explicit GBitVec(int64_t bitsize, bool value = false) : Size(bitsize) {
 	if (bitsize==0) {
 		Capacity=0;
 		fBits=0;
@@ -175,7 +175,7 @@ public:
   bool empty() const { return Size == 0; }
 
   /// size - Returns the number of bits in this GBitVec.
-  uint size() const { return Size; }
+  int64_t size() const { return Size; }
 
 
   void bitSizeError() {
@@ -183,9 +183,9 @@ public:
         sizeof(BitWord));
     }
   /// count - Returns the number of bits which are set.
-  uint count() {
-    uint NumBits = 0;
-    for (uint i = 0; i < NumBitWords(size()); ++i)
+  int64_t count() {
+    int64_t NumBits = 0;
+    for (int64_t i = 0; i < NumBitWords(size()); ++i)
       if (sizeof(BitWord) == 4)
         NumBits += bitCount_32((uint32_t)fBits[i]);
       else if (sizeof(BitWord) == 8)
@@ -197,7 +197,7 @@ public:
 
   /// any - Returns true if any bit is set.
   bool any() {
-    for (uint i = 0; i < NumBitWords(size()); ++i)
+    for (int64_t i = 0; i < NumBitWords(size()); ++i)
       if (fBits[i] != 0)
         return true;
     return false;
@@ -216,8 +216,8 @@ public:
 
   /// find_first - Returns the index of the first set bit, -1 if none
   /// of the bits are set.
-  int find_first() {
-    for (uint i = 0; i < NumBitWords(size()); ++i)
+  int64_t find_first() {
+    for (int64_t i = 0; i < NumBitWords(size()); ++i)
       if (fBits[i] != 0) {
         if (sizeof(BitWord) == 4)
           return i * BITWORD_SIZE + bitCountTrailingZeros_32((uint32_t)fBits[i]);
@@ -231,13 +231,13 @@ public:
 
   /// find_next - Returns the index of the next set bit following the
   /// "Prev" bit. Returns -1 if the next set bit is not found.
-  int find_next(uint Prev) {
+  int64_t find_next(int64_t Prev) {
     ++Prev;
     if (Prev >= Size)
       return -1;
 
-    uint WordPos = Prev / BITWORD_SIZE;
-    uint BitPos = Prev % BITWORD_SIZE;
+    int64_t WordPos = Prev / BITWORD_SIZE;
+    int64_t BitPos = Prev % BITWORD_SIZE;
     BitWord Copy = fBits[WordPos];
     // Mask off previous bits.
     Copy &= ~0UL << BitPos;
@@ -252,7 +252,7 @@ public:
     }
 
     // Check subsequent words.
-    for (uint i = WordPos+1; i < NumBitWords(size()); ++i)
+    for (int64_t i = WordPos+1; i < NumBitWords(size()); ++i)
       if (fBits[i] != 0) {
         if (sizeof(BitWord) == 4)
           return i * BITWORD_SIZE + bitCountTrailingZeros_32((uint32_t)fBits[i]);
@@ -270,9 +270,9 @@ public:
   }
 
   /// resize - Grow or shrink the GBitVec.
-  void resize(uint N, bool value = false) {
+  void resize(int64_t N, bool value = false) {
     if (N > Capacity * BITWORD_SIZE) {
-      uint OldCapacity = Capacity;
+      int64_t OldCapacity = Capacity;
       grow(N);
       init_words(&fBits[OldCapacity], (Capacity-OldCapacity), value);
     }
@@ -284,13 +284,13 @@ public:
       set_unused_bits(value);
 
     // Update the size, and clear out any bits that are now unused
-    uint OldSize = Size;
+    int64_t OldSize = Size;
     Size = N;
     if (value || N < OldSize)
       clear_unused_bits();
   }
 
-  void reserve(uint N) {
+  void reserve(int64_t N) {
     if (N > Capacity * BITWORD_SIZE)
       grow(N);
   }
@@ -302,7 +302,7 @@ public:
     return *this;
   }
 
-  GBitVec &set(uint Idx) {
+  GBitVec &set(int64_t Idx) {
 #ifndef NDEBUG
 	  indexCheck(Idx, Size);
 #endif
@@ -315,7 +315,7 @@ public:
     return *this;
   }
 
-  GBitVec &reset(uint Idx) {
+  GBitVec &reset(int64_t Idx) {
 #ifndef NDEBUG
 	  indexCheck(Idx, Size);
 #endif
@@ -324,13 +324,13 @@ public:
   }
 
   GBitVec &flip() {
-    for (uint i = 0; i < NumBitWords(size()); ++i)
+    for (int64_t i = 0; i < NumBitWords(size()); ++i)
       fBits[i] = ~fBits[i];
     clear_unused_bits();
     return *this;
   }
 
-  GBitVec &flip(uint Idx) {
+  GBitVec &flip(int64_t Idx) {
 #ifndef NDEBUG
 	  indexCheck(Idx, Size);
 #endif
@@ -343,14 +343,14 @@ public:
     return GBitVec(*this).flip();
   }
 
-  inline static void indexCheck(uint vIdx, uint vSize) {
+  inline static void indexCheck(int64_t vIdx, int64_t vSize) {
     if (vIdx >= vSize)
-      GError("Error at GBitVec: index %d out of bounds (size %d)\n",
-        (int)vIdx, vSize);
+      GError("Error at GBitVec: index %" PRId64 " out of bounds (size %" PRId64 ")\n",
+        vIdx, vSize);
    }
 
   // Indexing.
-  GBitRef operator[](uint Idx) {
+  GBitRef operator[](int64_t Idx) {
     //assert (Idx < Size && "Out-of-bounds Bit access.");
 	#ifndef NDEBUG
 	  indexCheck(Idx, Size);
@@ -358,7 +358,7 @@ public:
     return GBitRef(*this, Idx);
   }
 
-  bool operator[](uint Idx) const {
+  bool operator[](int64_t Idx) const {
    #ifndef NDEBUG
     indexCheck(Idx, Size);
    #endif
@@ -366,16 +366,16 @@ public:
    return (fBits[Idx / BITWORD_SIZE] & Mask) != 0;
   }
 
-  bool test(uint Idx) const {
+  bool test(int64_t Idx) const {
     return (*this)[Idx];
   }
 
   // Comparison operators.
   bool operator==(const GBitVec &RHS) const {
-    uint ThisWords = NumBitWords(size());
-    uint RHSWords  = NumBitWords(RHS.size());
-    uint i;
-    uint imax=GMIN(ThisWords, RHSWords);
+    int64_t ThisWords = NumBitWords(size());
+    int64_t RHSWords  = NumBitWords(RHS.size());
+    int64_t i;
+    int64_t imax=GMIN(ThisWords, RHSWords);
     for (i = 0; i != imax; ++i)
       if (fBits[i] != RHS.fBits[i])
         return false;
@@ -399,10 +399,10 @@ public:
 
   // Intersection, union, disjoint union.
   GBitVec &operator&=(const GBitVec &RHS) {
-    uint ThisWords = NumBitWords(size());
-    uint RHSWords  = NumBitWords(RHS.size());
-    uint i;
-    uint imax=GMIN(ThisWords, RHSWords);
+    int64_t ThisWords = NumBitWords(size());
+    int64_t RHSWords  = NumBitWords(RHS.size());
+    int64_t i;
+    int64_t imax=GMIN(ThisWords, RHSWords);
     for (i = 0; i != imax; ++i)
       fBits[i] &= RHS.fBits[i];
 
@@ -436,7 +436,7 @@ public:
     if (this == &RHS) return *this;
 
     Size = RHS.size();
-    uint RHSWords = NumBitWords(Size);
+    int64_t RHSWords = NumBitWords(Size);
     if (Size <= Capacity * BITWORD_SIZE) {
       if (Size)
         memcpy(fBits, RHS.fBits, RHSWords * sizeof(BitWord));
@@ -465,19 +465,19 @@ public:
   }
 
 private:
-  uint NumBitWords(uint S) const {
+  int64_t NumBitWords(int64_t S) const {
     return (S + BITWORD_SIZE-1) / BITWORD_SIZE;
   }
 
   // Set the unused bits in the high words.
   void set_unused_bits(bool value = true) {
     //  Set high words first.
-    uint UsedWords = NumBitWords(Size);
+    int64_t UsedWords = NumBitWords(Size);
     if (Capacity > UsedWords)
       init_words(&fBits[UsedWords], (Capacity-UsedWords), value);
 
     //  Then set any stray high bits of the last used word.
-    uint ExtraBits = Size % BITWORD_SIZE;
+    int64_t ExtraBits = Size % BITWORD_SIZE;
 
     if (ExtraBits) {
       BitWord ExtraBitMask = ~0UL << ExtraBits;
@@ -493,14 +493,14 @@ private:
     set_unused_bits(false);
   }
 
-  void grow(uint NewSize) {
+  void grow(int64_t NewSize) {
     Capacity = GMAX(NumBitWords(NewSize), Capacity * 2);
     //fBits = (BitWord *)std::realloc(fBits, Capacity * sizeof(BitWord));
     GREALLOC(fBits, Capacity * sizeof(BitWord));
     clear_unused_bits();
   }
 
-  void init_words(BitWord *B, uint NumWords, bool value) {
+  void init_words(BitWord *B, int64_t NumWords, bool value) {
     memset(B, 0 - (int)value, NumWords*sizeof(BitWord));
   }
 };

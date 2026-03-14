@@ -8,7 +8,7 @@
 #include "GFastaIndex.h"
 #define ERR_FAIDXLINE "Error parsing fasta index line: \n%s\n"
 #define ERR_FALINELEN "Error: sequence lines in a FASTA record must have the same length!\n"
-void GFastaIndex::addRecord(const char* seqname, uint seqlen, off_t foffs, int llen, int llen_full) {
+void GFastaIndex::addRecord(const char* seqname, int64_t seqlen, off_t foffs, int llen, int llen_full) {
      GFastaRec* farec=records.Find(seqname);
      if (farec!=NULL) {
           GMessage("Warning: duplicate sequence ID (%s) added to the fasta index! Only last entry data will be kept.\n");
@@ -45,14 +45,14 @@ int GFastaIndex::loadIndex(const char* finame) { //load record info from existin
       if (p==NULL) GError(ERR_FAIDXLINE,s);
       *p=0; //s now holds the genomic sequence name
       p++;
-      uint len=0;
+      int64_t len=0;
       int line_len=0, line_blen=0;
 #ifdef _WIN32
          long offset=-1;
-         sscanf(p, "%d%ld%d%d", &len, &offset, &line_len, &line_blen);
+         sscanf(p, "%" SCNd64 "%ld%d%d", &len, &offset, &line_len, &line_blen);
 #else
          long long offset=-1;
-         sscanf(p, "%u%lld%d%d", &len, &offset, &line_len, &line_blen);
+         sscanf(p, "%" SCNd64 "%lld%d%d", &len, &offset, &line_len, &line_blen);
 #endif
       if (len==0 || line_len==0 || line_blen==0 || line_blen<line_len)
           GError(ERR_FAIDXLINE,p);
@@ -76,7 +76,7 @@ int GFastaIndex::buildIndex() {
     records.Clear();
     GLineReader fl(fa);
     char* s=NULL;
-    uint seqlen=0;
+    int64_t seqlen=0;
     int line_len=0,line_blen=0;
     bool newSeq=false; //set when FASTA header is encountered
     off_t newSeqOffset=0;
@@ -165,11 +165,11 @@ int GFastaIndex::storeIndex(FILE* fai) {
   //reclist has records sorted by file offset
   for (int i=0;i<reclist.Count();i++) {
 #ifdef _WIN32
-    int written=fprintf(fai, "%s\t%d\t%ld\t%d\t%d\n",
+    int written=fprintf(fai, "%s\t%" PRId64 "\t%ld\t%d\t%d\n",
             reclist[i]->seqname,reclist[i]->seqlen,(long)reclist[i]->fpos,
               reclist[i]->line_len, reclist[i]->line_blen);
 #else
-    int written=fprintf(fai, "%s\t%d\t%lld\t%d\t%d\n",
+    int written=fprintf(fai, "%s\t%" PRId64 "\t%lld\t%d\t%d\n",
             reclist[i]->seqname, reclist[i]->seqlen, (long long)(reclist[i]->fpos),
               reclist[i]->line_len, reclist[i]->line_blen);
 #endif

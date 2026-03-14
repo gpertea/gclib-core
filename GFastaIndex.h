@@ -14,11 +14,11 @@
 class GFastaRec {
  public:
   const char* seqname;
-  uint seqlen;
+  int64_t seqlen;
   off_t fpos;
   int line_len; //effective line length (without EoL)
   int line_blen; //length of line including EoL characters
-  GFastaRec(uint slen=0, off_t fp=0, int llen=0, int llenb=0) {
+  GFastaRec(int64_t slen=0, off_t fp=0, int llen=0, int llenb=0) {
     seqname=NULL; //only a pointer copy
     seqlen=slen;
     fpos=fp;
@@ -43,7 +43,7 @@ class GFastaIndex {
   bool haveFai;
  public:
   GHash<GFastaRec*> records;
-  void addRecord(const char* seqname, uint seqlen,
+  void addRecord(const char* seqname, int64_t seqlen,
                     off_t foffs, int llen, int llen_full);
 
   GFastaRec* getRecord(const char* seqname) {

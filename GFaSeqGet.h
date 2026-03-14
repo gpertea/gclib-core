@@ -7,8 +7,8 @@
 
 class GSubSeq {
  public:
-  uint sqstart; //1-based coord of subseq start on sequence
-  uint sqlen;   //length of subseq loaded
+  int64_t sqstart; //1-based coord of subseq start on sequence
+  int64_t sqlen;   //length of subseq loaded
   char* sq; //actual subsequence data will be stored here
                 // (with end-of-line characters removed)
 
@@ -32,7 +32,7 @@ class GSubSeq {
      GFREE(sq);
      }
   // genomic, 1-based coordinates:
-  void setup(uint sstart, int slen, int sovl=0, int qfrom=0, int qto=0, uint maxseqlen=0);
+  void setup(int64_t sstart, int64_t slen, int64_t sovl=0, int64_t qfrom=0, int64_t qto=0, int64_t maxseqlen=0);
     //check for overlap with previous window and realloc/extend appropriately
     //returns offset from seq that corresponds to sstart
     // the window will keep extending until MAX_FASUBSEQ is reached
@@ -43,13 +43,13 @@ class GFaSeqGet {
   char* fname; //file name where the sequence resides
   FILE* fh;
   off_t fseqstart; //file offset where the sequence actually starts
-  uint seq_len; //total sequence length, if known (when created from GFastaIndex)
-  uint line_len; //length of each line of text
-  uint line_blen; //binary length of each line
+  int64_t seq_len; //total sequence length, if known (when created from GFastaIndex)
+  int64_t line_len; //length of each line of text
+  int64_t line_blen; //binary length of each line
                  // = line_len + number of EOL character(s)
   GSubSeq* lastsub;
   void initialParse(off_t fofs=0, bool checkall=true);
-  const char* loadsubseq(uint cstart, int& clen);
+  const char* loadsubseq(int64_t cstart, int& clen);
   void finit(const char* fn, off_t fofs, bool validate);
  public:
   //GStr seqname; //current sequence name
@@ -70,7 +70,7 @@ class GFaSeqGet {
      finit(fn,0,validate);
   }
 
-  GFaSeqGet(const char* faname, uint seqlen, off_t fseqofs, int l_len, int l_blen);
+  GFaSeqGet(const char* faname, int64_t seqlen, off_t fseqofs, int l_len, int l_blen);
   //constructor from GFastaIndex record
 
   GFaSeqGet(FILE* f, off_t fofs=0, bool validate=false);
@@ -84,13 +84,13 @@ class GFaSeqGet {
     delete lastsub;
   }
 
-  const char* seq(uint cstart=1, int clen=0) {
-	  int cend = clen==0 ? 0 : cstart+clen-1;
+  const char* seq(int64_t cstart=1, int clen=0) {
+	  int64_t cend = clen==0 ? 0 : cstart+clen-1;
 	  return getRange(cstart, cend);
   }
 
-  const char* subseq(uint cstart, int& clen);
-  const char* getRange(uint cstart=1, uint cend=0) {
+  const char* subseq(int64_t cstart, int& clen);
+  const char* getRange(int64_t cstart=1, int64_t cend=0) {
       if (cend==0) cend=(seq_len>0)?seq_len : MAX_FASUBSEQ;
       if (cstart>cend) { Gswap(cstart, cend); }
       int clen=cend-cstart+1;
@@ -99,7 +99,7 @@ class GFaSeqGet {
   }
 
   //caller is responsible for deallocating the return string
-  char* copyRange(uint cstart, uint cend, bool revCmpl=false, bool upCase=false);
+  char* copyRange(int64_t cstart, int64_t cend, bool revCmpl=false, bool upCase=false);
 
   //uncached, read and return allocated buffer
   //caller is responsible for deallocating the return string
@@ -125,17 +125,17 @@ class GFaSeqGet {
     int clen=(seq_len>0) ? seq_len : ((max_len>0) ? max_len : MAX_FASUBSEQ);
     subseq(1, clen);
     }
-  void load(uint cstart, uint cend) {
+  void load(int64_t cstart, int64_t cend) {
      //cache as much as possible
       if (seq_len>0 && cend>seq_len) cend=seq_len; //correct a bad request
       int clen=cend-cstart+1;
       subseq(cstart, clen);
      }
-  int getsublen() { return lastsub!=NULL ? lastsub->sqlen : 0 ; }
-  int getseqlen() { return seq_len; } //known when loaded with GFastaIndex
+  int64_t getsublen() { return lastsub!=NULL ? lastsub->sqlen : 0 ; }
+  int64_t getseqlen() { return seq_len; } //known when loaded with GFastaIndex
   off_t getseqofs() { return fseqstart; }
-  int getLineLen() { return line_len; }
-  int getLineBLen() { return line_blen; }
+  int64_t getLineLen() { return line_len; }
+  int64_t getLineBLen() { return line_blen; }
   //reads a subsequence starting at genomic coordinate cstart (1-based)
  };
 
@@ -271,7 +271,9 @@ class GFastaDb {
         if (farec!=NULL) {
              faseq=new GFaSeqGet(fastaPath,farec->seqlen, farec->fpos,
                                farec->line_len, farec->line_blen);
-             faseq->loadall(); //just cache the whole sequence, it's faster
+             if (farec->seqlen>0 && farec->seqlen<=MAX_FASUBSEQ) {
+               faseq->loadall(); //just cache the whole sequence when it fits in the cache window
+             }
              //last_fetchid=gseq_id;
 
              last_seqname=Gstrdup(gseqname);

@@ -24,9 +24,9 @@ extern int gff_fid_transcript; // *RNA, *transcript feature name
 extern int gff_fid_exon;
 extern int gff_fid_CDS;
 
-extern const uint GFF_MAX_LOCUS;
-extern const uint GFF_MAX_EXON;
-extern const uint GFF_MAX_INTRON;
+extern const int64_t GFF_MAX_LOCUS;
+extern const int64_t GFF_MAX_EXON;
+extern const int64_t GFF_MAX_INTRON;
 //extern const uint gfo_flag_LEVEL_MSK; //hierarchical level: 0 = no parent
 //extern const byte gfo_flagShift_LEVEL;
 
@@ -110,12 +110,12 @@ bool txStructureMatch(GffObj& a, GffObj& b, double SE_tolerance=0.8, int ME_rang
 // -- tracking exon/CDS segments from local mRNA to genome coordinates
 class GMapSeg:public GSeg {
 public:
-	uint gstart; //genome start location
-	uint gend;   //genome end location
+	int64_t gstart; //genome start location
+	int64_t gend;   //genome end location
 	//gend<gstart when mapped on reverse strand !
-	GMapSeg(uint s=0, uint e=0, uint gs=0, uint ge=0):GSeg(s,e),
+	GMapSeg(int64_t s=0, int64_t e=0, int64_t gs=0, int64_t ge=0):GSeg(s,e),
 			 gstart(gs), gend(ge) {};
-    int g_within(uint gc) {
+    int64_t g_within(int64_t gc) {
     	//return 0 if not within gstart-gend intervals
     	//or offset from gstart otherwise (always positive)
     	if (gstart>gend) { //reverse strand mapping
@@ -174,7 +174,7 @@ class GMapSegments:public GVec<GMapSeg> {
 		dir = (strand=='-') ? -1 : 1;;
 		GVec<GMapSeg>::Clear();
 	}
-    int add(uint s, uint e, uint gs, uint ge) {
+    int64_t add(int64_t s, int64_t e, int64_t gs, int64_t ge) {
     	if (dir<0) {
     		if (gs<ge) {
     			Gswap(gs, ge);
@@ -190,7 +190,7 @@ class GMapSegments:public GVec<GMapSeg> {
 		if (gm.start<lreg.start || lreg.start==0) lreg.start=gm.start;
     	return GVec<GMapSeg>::Add(gm);
     }
-    uint gmap(uint lc) { //takes a local coordinate and returns its mapping to genomic coordinates
+    int64_t gmap(int64_t lc) { //takes a local coordinate and returns its mapping to genomic coordinates
     	//returns 0 if mapping cannot be performed!
     	if (lc==0 || fCount==0 || lc<lreg.start || lc>lreg.end) return 0;
     	//find local segment containing this coord
@@ -202,7 +202,7 @@ class GMapSegments:public GVec<GMapSeg> {
         }
     	return 0;
     }
-    uint lmap(uint gc) { //takes a genome coordinate and returns its mapping to local coordinates
+    int64_t lmap(int64_t gc) { //takes a genome coordinate and returns its mapping to local coordinates
     	if (gc==0 || fCount==0 || gc<greg.start || gc>greg.end) return 0;
     	//find genomic segment containing this coord
     	int i=0;
@@ -224,13 +224,13 @@ class BEDLine {
     char* line; //this will have tabs replaced by \0
     int llen;
     char* gseqname;
-    uint fstart;
-    uint fend;
+    int64_t fstart;
+    int64_t fend;
     char strand;
     char* ID; //transcript ID from BED-12 (4th column)
     char* info; //13th column - these could be GFF3 attributes
-    uint cds_start;
-    uint cds_end;
+    int64_t cds_start;
+    int64_t cds_end;
     char cds_phase;
     GVec<GSeg> exons;
     BEDLine(GffReader* r=NULL, const char* l=NULL);
@@ -255,12 +255,12 @@ class GffLine {
     char* ftype; //feature name: mRNA/gene/exon/CDS
     int ftype_id;
     char* info; //the last, attributes' field, unparsed
-    uint fstart;
-    uint fend;
+    int64_t fstart;
+    int64_t fend;
     /*
-    uint qstart; //overlap coords on query, if available
-    uint qend;
-    uint qlen; //query len, if given
+    int64_t qstart; //overlap coords on query, if available
+    int64_t qend;
+    int64_t qlen; //query len, if given
     */
     float score;
     int8_t score_decimals;
@@ -284,8 +284,8 @@ class GffLine {
     };
     int8_t exontype; // gffExonType
     char phase;  // '.' , '0', '1' or '2', can be also given as CDSphase attribute in TLF
-    uint cds_start; //if TLF: CDS=start:end attribute
-    uint cds_end;
+    int64_t cds_start; //if TLF: CDS=start:end attribute
+    int64_t cds_end;
     GVec<GSeg> exons; //if TLF: exons= attribute
     GVec<GSeg> cdss; //if TLF: CDS=segment_list attribute
     char* gene_name; //value of gene_name attribute (GTF) if present or Name attribute of a gene feature (GFF3)
@@ -691,7 +691,7 @@ class GffExon : public GSeg {
   GffExon(bool share_attributes):GSeg(0,0), sharedAttrs(share_attributes), attrs(NULL), score(),
 		  exontype(0), phase('.'), uptr(NULL){
   }
-  GffExon(uint s=0, uint e=0, int8_t et=0, char ph='.', float sc=0, int8_t sc_prec=0):sharedAttrs(false), attrs(NULL),
+  GffExon(int64_t s=0, int64_t e=0, int8_t et=0, char ph='.', float sc=0, int8_t sc_prec=0):sharedAttrs(false), attrs(NULL),
 		  score(sc,sc_prec), exontype(et), phase(ph), uptr(NULL) {
 		if (s<e) { start=s; end=e; }
 		    else { start=e; end=s; }
@@ -775,8 +775,8 @@ public:
   GffObj* ulink; //link to another GffObj (user controlled field)
   //---mRNA specific fields:
   //bool isCDS; //just a CDS, no UTRs
-  uint CDstart; //CDS lowest coordinate
-  uint CDend;   //CDS highest coordinate
+  int64_t CDstart; //CDS lowest coordinate
+  int64_t CDend;   //CDS highest coordinate
   char CDphase; //initial phase for CDS start ('.','0'..'2')
                 //CDphase is at CDend if strand=='-'
   static void decodeHexChars(char* dbuf, const char* s, int maxlen=1023);
@@ -819,18 +819,18 @@ public:
   }
 
   //return the index of exon containing coordinate coord, or -1 if not
-  int whichExon(uint coord, GList<GffExon>* segs=NULL);
+  int whichExon(int64_t coord, GList<GffExon>* segs=NULL);
   int readExon(GffReader& reader, GffLine& gl);
 
   int addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override=exgffNone); //add to cdss or exons
 
-  int addExon(uint segstart, uint segend, int8_t exontype=exgffNone, char phase='.',
+  int addExon(int64_t segstart, int64_t segend, int8_t exontype=exgffNone, char phase='.',
 		      GffScore exon_score=GFFSCORE_NONE, GList<GffExon>* segs=NULL);
 
 protected:
   bool reduceExonAttrs(GList<GffExon>& segs);
   //utility segment-merging function for addExon()
-  void expandSegment(GList<GffExon>&segs, int oi, uint segstart, uint segend,
+  void expandSegment(GList<GffExon>&segs, int oi, int64_t segstart, int64_t segend,
        int8_t exontype);
   bool processGeneSegments(GffReader* gfr); //for genes that have _gene_segment features (NCBI annotation)
   void transferCDS(GffExon* cds);
@@ -928,7 +928,7 @@ public:
    const char* getSubfName() { //returns the generic feature type of the entries in exons array
      return names->feats.getName(subftype_id);
      }
-   void setCDS(uint cd_start, uint cd_end, char phase=0);
+   void setCDS(int64_t cd_start, int64_t cd_end, char phase=0);
    void setCDS(GffObj* t); //set CDS from another transcript
 
    bool monoFeature() {
@@ -996,7 +996,7 @@ public:
    const char* getTrackName() {
      return names->tracks.getName(track_id);
    }
-   bool exonOverlap(uint s, uint e) {//check if ANY exon overlaps given segment
+   bool exonOverlap(int64_t s, int64_t e) {//check if ANY exon overlaps given segment
       //ignores strand!
       if (s>e) Gswap(s,e);
       for (int i=0;i<exons.Count();i++) {
@@ -1018,7 +1018,7 @@ public:
      return false;
    }
 
-   int exonOverlapIdx(GList<GffExon>& segs, uint s, uint e, int* ovlen=NULL, int start_idx=0);
+   int exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int* ovlen=NULL, int start_idx=0);
 
    int exonOverlapLen(GffObj& r, int *rovlstart=NULL) {
 	  if (rovlstart) *rovlstart=0;
@@ -1028,14 +1028,14 @@ public:
       int ovlen=0;
       int rxpos=0;
       while (i<exons.Count() && j<r.exons.Count()) {
-        uint istart=exons[i]->start;
-        uint iend=exons[i]->end;
-        uint jstart=r.exons[j]->start;
-        uint jend=r.exons[j]->end;
+        int64_t istart=exons[i]->start;
+        int64_t iend=exons[i]->end;
+        int64_t jstart=r.exons[j]->start;
+        int64_t jend=r.exons[j]->end;
         if (istart>jend) { j++; rxpos+=jend-jstart+1; continue; }
         if (jstart>iend) { i++; continue; }
         //exon overlap
-        uint ovstart=0;
+        int64_t ovstart=0;
         if (istart>jstart) {
         	ovstart=istart;
         	if (rovlstart && *rovlstart==0) *rovlstart=rxpos+istart-jstart+1;
@@ -1131,7 +1131,7 @@ public:
    void printSummary(FILE* fout=NULL);
 
    char* getSpliced(GFaSeqGet* faseq, bool CDSonly=false, int* rlen=NULL,
-           uint* cds_start=NULL, uint* cds_end=NULL, GMapSegments* seglst=NULL,
+           int64_t* cds_start=NULL, int64_t* cds_end=NULL, GMapSegments* seglst=NULL,
 		   bool cds_open=false);
     char* getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst=NULL);
 
@@ -1157,9 +1157,9 @@ class GSeqStat {
    int gseqid; //gseq id in the global static pool of gseqs
    char* gseqname; //just a pointer to the name of gseq
    int fcount;//number of features on this gseq
-   uint mincoord;
-   uint maxcoord;
-   uint maxfeat_len; //maximum feature length on this genomic sequence
+   int64_t mincoord;
+   int64_t maxcoord;
+   int64_t maxfeat_len; //maximum feature length on this genomic sequence
    GffObj* maxfeat;
    GSeqStat(int id=-1, char* name=NULL) {
      gseqid=id;
@@ -1301,7 +1301,7 @@ class GffReader {
   // const char* id, const char* ctg, char strand, GVec<GfoHolder>** glst, uint start, uint end
   bool pFind(const char* id, GPVec<GffObj>*& glst);
   GffObj* gfoFind(const char* id, GPVec<GffObj>* & glst, const char* ctg=NULL,
-	                                         char strand=0, uint start=0, uint end=0);
+	                                         char strand=0, int64_t start=0, int64_t end=0);
   CNonExon* subfPoolCheck(GffLine* gffline, GHash<CNonExon*>& pex, char*& subp_name);
   void subfPoolAdd(GHash<CNonExon*>& pex, GffObj* newgfo);
   GffObj* promoteFeature(CNonExon* subp, char*& subp_name, GHash<CNonExon*>& pex);
@@ -1457,7 +1457,7 @@ class GSegMatch { //keep track of "matching" overlaps of a GeneCDSChain with mul
 class GeneCDS: public GSeg {
   public:
 	int idx; //index of this CDS entry in this gene->cdss[] list
-	GeneCDS(int i=-1, uint cstart=0, uint cend=0):GSeg(cstart, cend), idx(i) {
+	GeneCDS(int i=-1, int64_t cstart=0, int64_t cend=0):GSeg(cstart, cend), idx(i) {
 	}
 };
 
@@ -1466,12 +1466,12 @@ class GeneCDSChain: public GSeg { //keep track of CDS chains of the gene and the
 	GVec<GeneCDS> cdsList; //all CDSs in this chain
 	GArray<GSegMatch> mxs; //list of "matching" container X_gene_segment transcripts;
 	GeneCDSChain():cdsList(),mxs() { }
-	GeneCDSChain(int idx, uint cstart, uint cend):GSeg(cstart, cend),
+	GeneCDSChain(int idx, int64_t cstart, int64_t cend):GSeg(cstart, cend),
 	    	cdsList(),mxs(true) {
 	    addCDS(idx, cstart, cend);
 
 	}
-	void addCDS(int idx, uint cstart, uint cend) {
+	void addCDS(int idx, int64_t cstart, int64_t cend) {
 	    GeneCDS cds(idx, cstart, cend);
 	    cdsList.Add(cds);
 	    expandInclude(cstart, cend);
@@ -1480,7 +1480,7 @@ class GeneCDSChain: public GSeg { //keep track of CDS chains of the gene and the
 	    GSegMatch segmatch(childidx, ncov, gsegidx);
 	    mxs.Add(segmatch);
 	}
-	bool singleExonCDSMatch(uint tstart, uint tend, int& ncov) {
+	bool singleExonCDSMatch(int64_t tstart, int64_t tend, int& ncov) {
 	    if (start>=tstart && end<=tend) {
 	    	ncov=start-tstart + tend-end;
 	    	//add all CDS-"introns"

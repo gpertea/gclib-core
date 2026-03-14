@@ -1018,7 +1018,7 @@ bool strToInt(char* p, int& i) {
 	 return true;
 }
 
-bool strToUInt(char* p, uint& i) {
+bool strToUInt(char* p, int64_t& i) {
 	while (*p==' ' || *p=='\t') p++;
 	char* start=p;
 	if (*p=='-') return false;
@@ -1027,15 +1027,15 @@ bool strToUInt(char* p, uint& i) {
 	//now p is on a non-digit;
 	if (start==p) return false;
 	char* endptr=NULL;
-	unsigned long l=strtoul(start,&endptr,10);
-	i=(uint) l;
+	long long l=strtoll(start,&endptr,10);
+	i=l;
 	if (endptr!=p || endptr==start || i!=l)
 		return false;
 	return true;
 }
 
 
-bool parseUInt(char* &p, uint& i) { //pointer p is advanced after the number
+bool parseUInt(char* &p, int64_t& i) { //pointer p is advanced after the number
  while (*p==' ' || *p=='\t') p++;
  char* p0=p;
  char* start=p;
@@ -1048,8 +1048,8 @@ bool parseUInt(char* &p, uint& i) { //pointer p is advanced after the number
 	 return false;
  }
  char* endptr=NULL;
- unsigned long l=strtoul(start,&endptr,10);
- i=(uint) l;
+ long long l=strtoll(start,&endptr,10);
+ i=l;
  if (endptr!=p || endptr==start || i!=l) {
 	 p=p0;
 	 return false;
@@ -1057,7 +1057,7 @@ bool parseUInt(char* &p, uint& i) { //pointer p is advanced after the number
  return true;
 }
 
-bool parseHex(char* &p, uint& i) {
+bool parseHex(char* &p, int64_t& i) {
  //skip initial spaces/prefix
  while (*p==' ' || *p=='\t' || *p=='0' || *p=='x') p++;
  char* start=p;
@@ -1069,8 +1069,8 @@ bool parseHex(char* &p, uint& i) {
  char saved=*p;
  *p='\0';
  char* endptr=p;
- unsigned long l=strtoul(start,&endptr,16);
- i=(uint) l;
+ long long l=strtoll(start,&endptr,16);
+ i=l;
  *p=saved;
  if (endptr!=p || i!=l) return false;
  return true;

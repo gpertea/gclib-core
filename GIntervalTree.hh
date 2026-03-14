@@ -11,9 +11,9 @@ class GIntervalTreeNode {
   friend class GIntervalTree;
 protected:
   GSeg* storedInterval;
-  int key;
-  int high;
-  int maxHigh;
+  int64_t key;
+  int64_t high;
+  int64_t maxHigh;
   int red; /* if red=0 then the node is black */
   GIntervalTreeNode* left;
   GIntervalTreeNode* right;
@@ -21,13 +21,13 @@ protected:
 public:
   void Print(GIntervalTreeNode* nil,
 	     GIntervalTreeNode* root) const {
-	  printf(", k=%i, h=%i, mH=%i",key,high,maxHigh);
+	  printf(", k=%" PRId64 ", h=%" PRId64 ", mH=%" PRId64, key, high, maxHigh);
 	  printf("  l->key=");
-	  if( left == nil) printf("NULL"); else printf("%i",left->key);
+	  if( left == nil) printf("NULL"); else printf("%" PRId64, left->key);
 	  printf("  r->key=");
-	  if( right == nil) printf("NULL"); else printf("%i",right->key);
+	  if( right == nil) printf("NULL"); else printf("%" PRId64, right->key);
 	  printf("  p->key=");
-	  if( parent == root) printf("NULL"); else printf("%i",parent->key);
+	  if( parent == root) printf("NULL"); else printf("%" PRId64, parent->key);
 	  printf("  red=%i\n",red);
   }
   GIntervalTreeNode():storedInterval(NULL), key(0), high(0),maxHigh(0),red(0),
@@ -44,16 +44,16 @@ public:
   // right branch in searching for intervals but possibly come back
   // and check the left branch as well.
   GIntervalTreeNode * start_node;
-  unsigned int parentIndex;
-  int tryRightBranch;
+  int64_t parentIndex;
+  bool tryRightBranch;
 } ;
 
 class GIntervalTree {
 private:
-  unsigned int recursionNodeStackSize;
+  int64_t recursionNodeStackSize;
   G_ITRecursionNode * recursionNodeStack;
-  unsigned int currentParent;
-  unsigned int recursionNodeStackTop;
+  int64_t currentParent;
+  int64_t recursionNodeStackTop;
 protected:
   // A sentinel is used for root and for nil.  root->left should always
   // point to the node which is the root of the tree.  nil points to a
@@ -161,8 +161,8 @@ protected:
 	  }
 	#if defined(DEBUG_ASSERT)
 	  Assert(!nil->red,"nil not red in ITTreeInsertHelp");
-	  Assert((nil->maxHigh=MIN_INT),
-		 "nil->maxHigh != MIN_INT in ITTreeInsertHelp");
+	  Assert((nil->maxHigh=INT64_MIN),
+		 "nil->maxHigh != INT64_MIN in ITTreeInsertHelp");
 	#endif
 	}
 
@@ -260,8 +260,8 @@ protected:
   }
 
   int CheckMaxHighFieldsHelper(GIntervalTreeNode * y,
-  				    const int currentHigh,
-  					int match) const {
+                              const int64_t currentHigh,
+                              int match) const {
   	if (y != nil) {
   		match = CheckMaxHighFieldsHelper(y->left,currentHigh,match) ?
   				1 : match;
@@ -279,12 +279,12 @@ protected:
 	//nil = new IntervalTreeNode;
 	nil->left = nil->right = nil->parent = nil;
 	nil->red = 0;
-	nil->key = nil->high = nil->maxHigh = INT_MIN;
+	nil->key = nil->high = nil->maxHigh = INT64_MIN;
 	nil->storedInterval = NULL;
 
 	//root = new IntervalTreeNode;
 	root->parent = root->left = root->right = nil;
-	root->key = root->high = root->maxHigh = INT_MAX;
+	root->key = root->high = root->maxHigh = INT64_MAX;
 	root->red=0;
 	root->storedInterval = NULL;
 
@@ -354,7 +354,7 @@ protected:
 	    Assert( (y!=nil),"y is nil in DeleteNode \n");
 	#endif
 	    // y is the node to splice out and x is its child
-	    y->maxHigh = INT_MIN;
+	    y->maxHigh = INT64_MIN;
 	    y->left=z->left;
 	    y->right=z->right;
 	    y->parent=z->parent;
@@ -511,10 +511,10 @@ protected:
   //  again at the first left child and find an overlap in the left subtree
   //  of the left child of root we must recursively check the right subtree
   //  of the left child of root as well as the right child of root.
-  GVec<GSeg*> * Enumerate(int low, int high) {
+  GVec<GSeg*> * Enumerate(int64_t low, int64_t high) {
 		GVec<GSeg*> * enumResultStack;
 		GIntervalTreeNode* x=root->left;
-		int stuffToDo = (x != nil);
+		bool stuffToDo = (x != nil);
 
 		// Possible speed up: add min field to prune right searches
 

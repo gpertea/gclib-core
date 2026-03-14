@@ -47,7 +47,7 @@ RM = rm -f
 
 OBJS := GBase.o GArgs.o GFaSeqGet.o gdna.o codons.o gff.o GStr.o GFastaIndex.o
 
-.PHONY : all release debug memcheck memdebug test tests clean
+.PHONY : all release debug memcheck memdebug test tests large-tests clean
 
 all release debug memcheck memdebug: gclib-test
 
@@ -56,6 +56,9 @@ gclib-test: $(OBJS) gclib-test.o
 
 test tests: gclib-test
 	@./run_tests.sh
+
+large-tests: gclib-test
+	@./run_large_tests.sh
 
 clean:
 	@${RM} gclib-test gclib-test.o $(OBJS)

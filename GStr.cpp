@@ -13,7 +13,7 @@ GStr::Data GStr::null_data;
 
 //=========================================
 
-GStr::Data * GStr::new_data(uint len, uint addcap) {
+GStr::Data * GStr::new_data(int64_t len, int64_t addcap) {
 //static method to return a new Data object (allocate length)
 //content is undefined, but it's null terminated
     if (len > 0) {
@@ -29,7 +29,7 @@ GStr::Data * GStr::new_data(uint len, uint addcap) {
         return &null_data;
  }
 
-GStr::Data* GStr::new_data(const char* str, uint addcap) {
+GStr::Data* GStr::new_data(const char* str, int64_t addcap) {
 //static method to return a new Data object (allocate: length+addcap)
 //as a copy of a given string
  //if (str==NULL) return &null_data;
@@ -48,8 +48,8 @@ GStr::Data* GStr::new_data(const char* str, uint addcap) {
         return &null_data;
  }
 
-void GStr::prep_data(uint len, uint addcap) {
-	uint newcap=len+addcap;
+void GStr::prep_data(int64_t len, int64_t addcap) {
+	int64_t newcap=len+addcap;
     if (newcap > 0 && my_data->ref_count <= 1 &&
     	   my_data->cap>=newcap && my_data->cap-newcap<(newcap>>1)+2) {
     	//no need to shrink/reallocate the already allocated space
@@ -148,7 +148,7 @@ GStr::GStr(const GStr& s): my_data(&null_data){
  replace_data(s.my_data);
  }
 
-GStr::GStr(const char *s, uint addcap): my_data(&null_data) {
+GStr::GStr(const char *s, int64_t addcap): my_data(&null_data) {
   fTokenDelimiter=NULL;
   fTokenizeMode=tkCharSet;
   fLastTokenStart=0;
@@ -158,7 +158,7 @@ GStr::GStr(const char *s, uint addcap): my_data(&null_data) {
   my_data->ref_count = 1;
  }
 
-GStr::GStr(const int i, uint addcap): my_data(&null_data) {
+GStr::GStr(const int i, int64_t addcap): my_data(&null_data) {
  fTokenDelimiter=NULL;
  fTokenizeMode=tkCharSet;
  fLastTokenStart=0;
@@ -344,15 +344,9 @@ GStr& GStr::append(int i) {
  return append(buf);
  }
 
-GStr& GStr::append(uint i) {
- char buf[20];
- sprintf(buf,"%u",i);
- return append(buf);
- }
-
-GStr& GStr::append(long l) {
- char buf[20];
- sprintf(buf,"%ld",l);
+GStr& GStr::append(int64_t i) {
+ char buf[32];
+ sprintf(buf,"%" PRId64, i);
  return append(buf);
  }
 
@@ -593,7 +587,7 @@ GStr& GStr::trimL(const char* c) {
  return *this;
  }
 
-GStr& GStr::padR(uint len, char c) {
+GStr& GStr::padR(int64_t len, char c) {
  //pad with c until total string length is len
  if (my_data->length>=len) return *this; //no room for padding
  make_unique(); //edit operation ahead
@@ -609,7 +603,7 @@ GStr& GStr::padR(uint len, char c) {
  return *this;
  }
 
-GStr& GStr::padL(uint len, char c) { //align left the string
+GStr& GStr::padL(int64_t len, char c) { //align left the string
  if (my_data->length>=len) return *this; //no room for padding
  make_unique(); //edit operation ahead
  Data *data = new_data(len);
@@ -619,15 +613,15 @@ GStr& GStr::padL(uint len, char c) { //align left the string
  return *this;
  }
 
-GStr& GStr::padC(uint len, char c) {
+GStr& GStr::padC(int64_t len, char c) {
  if (my_data->length>=len) return *this; //no room for padding
  make_unique(); //edit operation ahead
- uint istart=(len-length())/2;
+ int64_t istart=(len-length())/2;
  Data *data = new_data(len);
  if (istart>0)
       ::memset(data->chars, c, istart);
  ::memcpy(&data->chars[istart], my_data->chars, length());
- uint iend=istart+length();
+ int64_t iend=istart+length();
  if (iend<len)
       ::memset(&data->chars[iend],c,len-iend);
  replace_data(data);
@@ -1011,7 +1005,7 @@ GStr& GStr::insert(const char *s, int idx) {
 
 GStr& GStr::append(char c) {
   make_unique(); //edit operation ahead
-  uint newlen=my_data->length+1;
+  int64_t newlen=my_data->length+1;
   if (my_data->cap==0) {
     prep_data(1, 6);
     my_data->chars[0]=c;
@@ -1030,8 +1024,8 @@ GStr& GStr::append(char c) {
 
 GStr& GStr::append(const char* s) {
   make_unique(); //edit operation ahead
-  uint len=::strlen(s);
-  uint newlen=len+my_data->length;
+  int64_t len=::strlen(s);
+  int64_t newlen=len+my_data->length;
   if (newlen<=my_data->length) return *this;
   if (my_data->length==0 && my_data->cap<newlen) {
     prep_data(len,4);
@@ -1067,7 +1061,7 @@ GStr& GStr::appendQuoted(const char* s, char q, bool onlyIfSpaced) {
 GStr& GStr::append(const char* s, int len) {
   make_unique(); //edit operation ahead
   //uint len=::strlen(s);
-  uint newlen=len+my_data->length;
+  int64_t newlen=len+my_data->length;
   if (newlen<=my_data->length) return *this;
   if (my_data->length==0 && my_data->cap<newlen) {
     prep_data(len,4);
@@ -1094,7 +1088,7 @@ GStr& GStr::append(const char* s, int len) {
 GStr& GStr::appendmem(const char* m, int len) {
   if (len<=0) return *this;
   make_unique(); //edit operation ahead
-  uint newlen=len+my_data->length;
+  int64_t newlen=len+my_data->length;
   //if (newlength<=my_data->length) return *this;
   if (my_data->length==0) {
     prep_data(len);
@@ -1505,4 +1499,3 @@ void GStr::invalid_index_error(const char *fname) {
     GError("GStr:: %s  - invalid index\n", fname);
 }
 //****************************************************************************
-

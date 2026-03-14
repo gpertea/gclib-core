@@ -31,8 +31,8 @@ class GStr {
         GStr();
         GStr(const GStr& s);
         //minimize reallocation when suffixes are added
-        GStr(const char* s, uint addcap=8);
-        GStr(const int i, uint addcap=8);
+        GStr(const char* s, int64_t addcap=8);
+        GStr(const int i, int64_t addcap=8);
 
         GStr(const double f);
         GStr(const char c, int n = 1);
@@ -67,8 +67,7 @@ class GStr {
         GStr& operator+=(const char* s) { return append(s); }
         GStr& operator+=(char c) { return append(c); }
         GStr& operator+=(int i) { return append(i); }
-        GStr& operator+=(uint i) { return append(i); }
-        GStr& operator+=(long l) { return append(l); }
+        GStr& operator+=(int64_t i) { return append(i); }
         GStr& operator+=(unsigned long l) { return append(l); }
         GStr& operator+=(double f);
       //interface:
@@ -102,9 +101,8 @@ class GStr {
         GStr& append(const GStr& s);
         GStr& append(char c);
         GStr& append(int i);
-        GStr& append(long l);
         GStr& append(double f);
-        GStr& append(uint i);
+        GStr& append(int64_t i);
         GStr& append(unsigned long l);
 
         GStr& upper();
@@ -162,9 +160,9 @@ class GStr {
         GStr& chomp(const char* cstr); //like trimR, but given string is taken as a whole
         GStr& trimL(const char* c=" \t\n\r"); //trim only left end
         GStr& trimL(char c=' ');
-        GStr& padR(uint len, char c=' '); //align it in len spaces to the right
-        GStr& padL(uint len, char c=' '); //align it in len spaces to the left
-        GStr& padC(uint len, char c=' '); //center it
+        GStr& padR(int64_t len, char c=' '); //align it in len spaces to the right
+        GStr& padL(int64_t len, char c=' '); //align it in len spaces to the left
+        GStr& padC(int64_t len, char c=' '); //center it
         size_t read(FILE* stream, const char* delimiter="\n", size_t bufsize=4096);
           //read next token from stream, using the given string as
           //a marker where the block should stop
@@ -182,14 +180,14 @@ class GStr {
         struct Data {//structure holding actual
                      //string data and reference count information
                Data():ref_count(0), cap(0),length(0) { chars[0] = 0; }
-               uint ref_count; //reference count
-               uint cap; //allocated string capacity (excluding \0 end char)
-               uint length; //actual string length (excluding \0 end char)
+               int64_t ref_count; //reference count
+               int64_t cap; //allocated string capacity (excluding \0 end char)
+               int64_t length; //actual string length (excluding \0 end char)
                char chars[1];
               };
-        static Data* new_data(uint len, uint addcap=0); //alloc a specified length string's Data
-        static Data* new_data(const char* str, uint addcap=0); //alloc a copy of a specified string, with an additional cap
-        void prep_data(uint len, uint addcap=0); //allocates memory for the string, if needed
+        static Data* new_data(int64_t len, int64_t addcap=0); //alloc a specified length string's Data
+        static Data* new_data(const char* str, int64_t addcap=0); //alloc a copy of a specified string, with an additional cap
+        void prep_data(int64_t len, int64_t addcap=0); //allocates memory for the string, if needed
         void replace_data(Data* data);
         //WARNING (dangerous): direct access to pointer; string editing cannot change the length!
         char* chrs();
