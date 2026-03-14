@@ -8,104 +8,11 @@
 #include "gdna.h"
 
 #define USAGE "Usage:\n\
-  gclib-test generate-large-fixtures <fasta> <annotation.gtf> <ranges.tsv>\n\
   gclib-test fasta-index <fasta>\n\
   gclib-test fasta-ranges <fasta> <ranges.tsv>\n\
   gclib-test gff-summary <annotation.gff|annotation.gtf>\n\
   gclib-test transcript-seq <annotation.gff|annotation.gtf> <fasta>\n\
 "
-
-static const char* LARGE_SEQNAME = "chrHuge";
-static const int64_t LARGE_LINE_LEN = 1 << 20;
-static const int64_t LARGE_FULL_LINES = 4096;
-static const int64_t LARGE_BASE_COORD = LARGE_LINE_LEN * LARGE_FULL_LINES;
-static const char* LARGE_TAIL =
-    "ACGTACGTACGTACGTACGTACGTACGTACGT"
-    "TTTTCCCCAAAAGGGGTTTTCCCCAAAAGGGG"
-    "AGCTTAGCAGCTTAGCAGCTTAGCAGCTTAGC"
-    "CCGGTTAACCGGTTAACCGGTTAACCGGTTAA"
-    "TGCATGCATGCATGCATGCATGCATGCATGCA"
-    "AACCAACCAACCAACCAACCAACCAACCAACC";
-
-static void writeLargeFixtureFasta(const char* fasta) {
- FILE* fw=fopen(fasta, "wb");
- if (fw==NULL) GError("Error: could not create large FASTA %s\n", fasta);
- char* wbuf=NULL;
- GMALLOC(wbuf, 8*1024*1024);
- setvbuf(fw, wbuf, _IOFBF, 8*1024*1024);
- fprintf(fw, ">%s\n", LARGE_SEQNAME);
-
- char* linebuf=NULL;
- GMALLOC(linebuf, LARGE_LINE_LEN+1);
- memset(linebuf, 'N', LARGE_LINE_LEN);
- linebuf[LARGE_LINE_LEN]='\n';
- for (int64_t i=0;i<LARGE_FULL_LINES;++i) {
-   if (fwrite(linebuf, 1, LARGE_LINE_LEN+1, fw)!=(size_t)(LARGE_LINE_LEN+1))
-     GError("Error writing large FASTA body to %s\n", fasta);
- }
- const size_t tail_len=strlen(LARGE_TAIL);
- if (fwrite(LARGE_TAIL, 1, tail_len, fw)!=tail_len)
-   GError("Error writing large FASTA tail to %s\n", fasta);
- fputc('\n', fw);
- fclose(fw);
- GFREE(linebuf);
- GFREE(wbuf);
-}
-
-static void writeLargeFixtureGtf(const char* gtf) {
- FILE* fw=fopen(gtf, "wb");
- if (fw==NULL) GError("Error: could not create large GTF %s\n", gtf);
- const int64_t plus_exon1_start=LARGE_BASE_COORD+1;
- const int64_t plus_exon1_end=LARGE_BASE_COORD+16;
- const int64_t plus_exon2_start=LARGE_BASE_COORD+101;
- const int64_t plus_exon2_end=LARGE_BASE_COORD+120;
- const int64_t minus_exon1_start=LARGE_BASE_COORD+33;
- const int64_t minus_exon1_end=LARGE_BASE_COORD+48;
- const int64_t minus_exon2_start=LARGE_BASE_COORD+145;
- const int64_t minus_exon2_end=LARGE_BASE_COORD+160;
-
- fprintf(fw, "%s\ttest\ttranscript\t%" PRId64 "\t%" PRId64 "\t.\t+\t.\tgene_id \"gene_plus\"; transcript_id \"tx_plus\";\n",
-         LARGE_SEQNAME, plus_exon1_start, plus_exon2_end);
- fprintf(fw, "%s\ttest\texon\t%" PRId64 "\t%" PRId64 "\t.\t+\t.\tgene_id \"gene_plus\"; transcript_id \"tx_plus\";\n",
-         LARGE_SEQNAME, plus_exon1_start, plus_exon1_end);
- fprintf(fw, "%s\ttest\texon\t%" PRId64 "\t%" PRId64 "\t.\t+\t.\tgene_id \"gene_plus\"; transcript_id \"tx_plus\";\n",
-         LARGE_SEQNAME, plus_exon2_start, plus_exon2_end);
- fprintf(fw, "%s\ttest\tCDS\t%" PRId64 "\t%" PRId64 "\t.\t+\t0\tgene_id \"gene_plus\"; transcript_id \"tx_plus\";\n",
-         LARGE_SEQNAME, plus_exon1_start, plus_exon1_end);
- fprintf(fw, "%s\ttest\tCDS\t%" PRId64 "\t%" PRId64 "\t.\t+\t0\tgene_id \"gene_plus\"; transcript_id \"tx_plus\";\n",
-         LARGE_SEQNAME, plus_exon2_start, plus_exon2_end);
-
- fprintf(fw, "%s\ttest\ttranscript\t%" PRId64 "\t%" PRId64 "\t.\t-\t.\tgene_id \"gene_minus\"; transcript_id \"tx_minus\";\n",
-         LARGE_SEQNAME, minus_exon1_start, minus_exon2_end);
- fprintf(fw, "%s\ttest\texon\t%" PRId64 "\t%" PRId64 "\t.\t-\t.\tgene_id \"gene_minus\"; transcript_id \"tx_minus\";\n",
-         LARGE_SEQNAME, minus_exon1_start, minus_exon1_end);
- fprintf(fw, "%s\ttest\texon\t%" PRId64 "\t%" PRId64 "\t.\t-\t.\tgene_id \"gene_minus\"; transcript_id \"tx_minus\";\n",
-         LARGE_SEQNAME, minus_exon2_start, minus_exon2_end);
- fprintf(fw, "%s\ttest\tCDS\t%" PRId64 "\t%" PRId64 "\t.\t-\t0\tgene_id \"gene_minus\"; transcript_id \"tx_minus\";\n",
-         LARGE_SEQNAME, minus_exon1_start, minus_exon1_end);
- fprintf(fw, "%s\ttest\tCDS\t%" PRId64 "\t%" PRId64 "\t.\t-\t0\tgene_id \"gene_minus\"; transcript_id \"tx_minus\";\n",
-         LARGE_SEQNAME, minus_exon2_start, minus_exon2_end);
- fclose(fw);
-}
-
-static void writeLargeFixtureRanges(const char* rangesf) {
- FILE* fw=fopen(rangesf, "wb");
- if (fw==NULL) GError("Error: could not create large ranges file %s\n", rangesf);
- fprintf(fw, "huge_e1\t%s\t%" PRId64 "\t%" PRId64 "\t+\n",
-         LARGE_SEQNAME, LARGE_BASE_COORD+1, LARGE_BASE_COORD+16);
- fprintf(fw, "huge_e2\t%s\t%" PRId64 "\t%" PRId64 "\t+\n",
-         LARGE_SEQNAME, LARGE_BASE_COORD+101, LARGE_BASE_COORD+120);
- fprintf(fw, "huge_rev\t%s\t%" PRId64 "\t%" PRId64 "\t-\n",
-         LARGE_SEQNAME, LARGE_BASE_COORD+145, LARGE_BASE_COORD+160);
- fclose(fw);
-}
-
-static int cmdGenerateLargeFixtures(const char* fasta, const char* gtf, const char* rangesf) {
- writeLargeFixtureFasta(fasta);
- writeLargeFixtureGtf(gtf);
- writeLargeFixtureRanges(rangesf);
- return 0;
-}
 
 static const char* nullStr(const char* s) {
  return (s==NULL || s[0]==0) ? "." : s;
@@ -296,13 +203,6 @@ int main(int argc, char* argv[]) {
  if (argc<3) {
    fprintf(stderr, "%s", USAGE);
    return 1;
- }
- if (strcmp(argv[1], "generate-large-fixtures")==0) {
-   if (argc!=5) {
-     fprintf(stderr, "%s", USAGE);
-     return 1;
-   }
-   return cmdGenerateLargeFixtures(argv[2], argv[3], argv[4]);
  }
  if (strcmp(argv[1], "fasta-index")==0) {
    if (argc!=3) {
