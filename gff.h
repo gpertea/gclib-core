@@ -1283,6 +1283,7 @@ class GffReader {
   };
   //char* lastReadNext;
   FILE* fh;
+  GLineReader* lineReader;
   char* fname;  //optional fasta file with the underlying genomic sequence to be attached to this reader
   GFFCommentParser* commentParser;
   GffLine* gffline;
@@ -1323,7 +1324,7 @@ class GffReader {
 
   GPVec<GSeqStat> gseqStats; //populated after finalize() with only the ref seqs in this file
   GffReader(FILE* f=NULL, bool t_only=false, bool sort=false):linebuf(NULL), fpos(0),
-		  buflen(0), flags(0), fh(f), fname(NULL), commentParser(NULL), gffline(NULL),
+		  buflen(0), flags(0), fh(f), lineReader(NULL), fname(NULL), commentParser(NULL), gffline(NULL),
 		  bedline(NULL), discarded_ids(true), phash(true), gseqtable(1,true),
 		  gflst(), gseqStats(1, false) {
       GMALLOC(linebuf, GFF_LINELEN);
@@ -1385,7 +1386,7 @@ class GffReader {
   }
 
   GffReader(const char* fn, bool t_only=false, bool sort=false):linebuf(NULL), fpos(0),
-	  		  buflen(0), flags(0), fh(NULL), fname(NULL), commentParser(NULL),
+	  		  buflen(0), flags(0), fh(NULL), lineReader(NULL), fname(NULL), commentParser(NULL),
 			  gffline(NULL), bedline(NULL), discarded_ids(true),
 			  phash(true), gseqtable(1,true), gflst(), gseqStats(1,false) {
       //gff_warns=gff_show_warnings;
@@ -1394,7 +1395,7 @@ class GffReader {
       transcripts_Only=t_only;
       sortByLoc=sort;
       fname=Gstrdup(fn);
-      fh=fopen(fname, "rb");
+      lineReader=new GLineReader(fname);
       GMALLOC(linebuf, GFF_LINELEN);
       buflen=GFF_LINELEN-1;
       //lastReadNext=NULL;
@@ -1404,6 +1405,7 @@ class GffReader {
       delete gffline;
       gffline=NULL;
       fpos=0;
+      delete lineReader;
       if (fh && fh!=stdin) fclose(fh);
       gflst.freeUnused();
       gflst.Clear();

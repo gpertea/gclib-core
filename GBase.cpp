@@ -1,6 +1,7 @@
 #include "GBase.h"
 #include <ctype.h>
 #include <errno.h>
+#include <zlib.h>
 
 #ifndef S_ISDIR
 #define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
@@ -254,6 +255,82 @@ FILE* Gfopen(const char *path, char *mode) {
 	if (f==NULL)
 		GMessage("Error opening file '%s':  %s\n", path, strerror(errno));
 	return f;
+}
+
+static int g_fileGetc(void* stream) {
+  return getc((FILE*)stream);
+}
+
+static int g_fileUngetc(int c, void* stream) {
+  return ungetc(c, (FILE*)stream);
+}
+
+static int g_gzGetc(void* stream) {
+  return gzgetc((gzFile)stream);
+}
+
+static int g_gzUngetc(int c, void* stream) {
+  return gzungetc(c, (gzFile)stream);
+}
+
+static bool g_gzippedFname(const char* fname) {
+  return (fname!=NULL && endsiWith(fname, ".gz"));
+}
+
+static bool g_gzippedMagic(FILE* f) {
+  if (f==NULL) return false;
+  int c1=getc(f);
+  if (c1==EOF) return false;
+  int c2=getc(f);
+  if (c2!=EOF) ungetc(c2, f);
+  ungetc(c1, f);
+  return (c1==0x1f && c2==0x8b);
+}
+
+static bool g_openTextStream(const char* fname, FILE*& f, void*& zf, bool& isgzip,
+                             bool allowCompressed=true) {
+  f=NULL;
+  zf=NULL;
+  isgzip=false;
+  FILE* probe=fopen(fname, "rb");
+  if (probe==NULL) return false;
+  bool gzipped=allowCompressed && (g_gzippedFname(fname) || g_gzippedMagic(probe));
+  fclose(probe);
+  if (gzipped) {
+     gzFile gzfh=gzopen(fname, "rb");
+     if (gzfh==NULL) return false;
+     zf=(void*)gzfh;
+     isgzip=true;
+     return true;
+  }
+  f=fopen(fname, "rb");
+  return (f!=NULL);
+}
+
+static char* g_getline(GDynArray<char>& buf, off_t* f_pos, int* linelen, void* stream,
+                       int (*getcfn)(void*), int (*ungetcfn)(int, void*)) {
+  int c=0;
+  off_t fpos=(f_pos!=NULL) ? *f_pos : 0;
+  buf.Reset();
+  while ((c=getcfn(stream))!=EOF) {
+    if (c=='\n' || c=='\r') {
+       if (c=='\r') {
+         if ((c=getcfn(stream))!='\n') {
+            if (c!=EOF) ungetcfn(c, stream);
+         }
+         else fpos++;
+       }
+       fpos++;
+       break;
+    }
+    fpos++;
+    buf.Push((char)c);
+  }
+  if (linelen!=NULL) *linelen=buf.Count();
+  if (f_pos!=NULL) *f_pos=fpos;
+  if (c==EOF && buf.Count()==0) return NULL;
+  buf.Push('\0');
+  return buf();
 }
 #define IS_CHR_DELIM(c) ( c == ' ' || c == '\t' || c == ':' )
 void GRangeParser::parse(char* s) {
@@ -513,63 +590,64 @@ char* rstrchr(char* str, char ch) {  /* returns a pointer to the rightmost
     -- even when it's abnormally long
   */
 char* fgetline(char* & buf, int& buf_cap, FILE *stream, off_t* f_pos, int* linelen) {
-  //reads a char at a time until \n and/or \r are encountered
-  int c=0;
   GDynArray<char> arr(buf, buf_cap);
-  off_t fpos=(f_pos!=NULL) ? *f_pos : 0;
-  while ((c=getc(stream))!=EOF) {
-    if (c=='\n' || c=='\r') {
-       if (c=='\r') {
-         if ((c=getc(stream))!='\n') ungetc(c,stream);
-                                else fpos++;
-         }
-       fpos++;
-       break;
-       }
-    fpos++;
-    arr.Push((char)c);
-    } //while i<buf_cap-1
-  //if (linelen!=NULL) *linelen=i;
-  if (linelen!=NULL) *linelen=arr.Count();
-  if (f_pos!=NULL) *f_pos=fpos;
-  //if (c==EOF && i==0) return NULL;
-  if (c==EOF && arr.Count()==0) return NULL;
-  arr.Push('\0');
+  char* line=g_getline(arr, f_pos, linelen, stream, g_fileGetc, g_fileUngetc);
+  if (line==NULL) return NULL;
   buf=arr();
   buf_cap=arr.Capacity();
-  return buf;
+  return line;
+}
+
+GLineReader::GLineReader(const char* fname, bool allowCompressed):closeFile(false),
+		buf(1024), textlen(0), isEOF(false), file(NULL), zfile(NULL), isgzip(false),
+		filepos(0), pushed(false), lcount(0) {
+   if (!g_openTextStream(fname, file, zfile, isgzip, allowCompressed))
+      GError("Error opening file '%s'!\n",fname);
+   closeFile=true;
+}
+
+GLineReader::~GLineReader() {
+  if (closeFile) {
+    if (isgzip) gzclose((gzFile)zfile);
+           else if (file!=NULL) fclose(file);
   }
+}
+
+char* GLineReader::getLine() {
+   if (pushed) { pushed=false; return buf(); }
+   textlen=0;
+   char* line=NULL;
+   if (isgzip) {
+      line=g_getline(buf, &filepos, &textlen, zfile, g_gzGetc, g_gzUngetc);
+   }
+   else {
+      line=g_getline(buf, &filepos, &textlen, file, g_fileGetc, g_fileUngetc);
+   }
+   if (line==NULL) {
+      isEOF=true;
+      return NULL;
+   }
+   isEOF=false;
+   lcount++;
+   return line;
+}
+
+char* GLineReader::getLine(FILE* stream) {
+   if (pushed) { pushed=false; return buf(); }
+   return getLine(stream, filepos);
+}
 
 char* GLineReader::getLine(FILE* stream, off_t& f_pos) {
    if (pushed) { pushed=false; return buf(); }
-   //reads a char at a time until \n and/or \r are encountered
-   int c=0;
    textlen=0;
-   buf.Reset(); //len = 0
-   while ((c=getc(stream))!=EOF) {
-     if (c=='\n' || c=='\r') {
-       textlen=buf.Count();
-       buf.Push('\0');
-       if (c=='\r') { //DOS file -- special case
-         if ((c=getc(stream))!='\n') ungetc(c,stream);
-                                else f_pos++;
-         }
-       f_pos++;
-       lcount++;
-       return buf();
-     }
-     f_pos++;
-     buf.Push(c);
-     } //while i<buf_cap-1
-   if (c==EOF) {
+   char* line=g_getline(buf, &f_pos, &textlen, stream, g_fileGetc, g_fileUngetc);
+   if (line==NULL) {
      isEOF=true;
-     textlen=buf.Count();
-     if (buf.Count()==0) return NULL;
-     }
-   textlen=buf.Count();
-   buf.Push('\0');
+     return NULL;
+   }
+   isEOF=false;
    lcount++;
-   return buf();
+   return line;
 }
 
 

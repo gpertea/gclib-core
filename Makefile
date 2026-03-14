@@ -3,7 +3,7 @@ SEARCHDIRS := -I.
 CXX   := $(if $(CXX),$(CXX),g++)
 LINKER  := $(if $(LINKER),$(LINKER),g++)
 LDFLAGS := $(if $(LDFLAGS),$(LDFLAGS),-g)
-LIBS :=
+LIBS := -lz
 
 BASEFLAGS  := -Wall -Wextra -std=c++11 ${SEARCHDIRS} -D_FILE_OFFSET_BITS=64 \
  -D_LARGEFILE_SOURCE -D_REENTRANT -fno-strict-aliasing \

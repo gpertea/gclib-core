@@ -677,6 +677,8 @@ class GLineReader {
    int textlen; //length of actual text, without newline character(s)
    bool isEOF;
    FILE* file;
+   void* zfile;
+   bool isgzip;
    off_t filepos; //current position
    bool pushed; //pushed back
    int lcount; //line counter (read lines)
@@ -684,7 +686,7 @@ class GLineReader {
    char* chars() { return buf(); }
    char* line() { return buf(); }
    int readcount() { return lcount; } //number of lines read
-   void setFile(FILE* stream) { file=stream; }
+   void setFile(FILE* stream) { file=stream; zfile=NULL; isgzip=false; }
    int blength() { return buf.Count(); } //binary/buffer length, including newline character(s)
    int charcount() { return buf.Count(); } //line length, including newline character(s)
    int tlength() { return textlen; } //text length excluding newline character(s)
@@ -692,32 +694,22 @@ class GLineReader {
    //int size() { return buf.Count(); } //same as size();
    bool isEof() {return isEOF; }
    bool eof() { return isEOF; }
+   bool isCompressed() { return isgzip; }
    off_t getfpos() { return filepos; }
    off_t getFpos() { return filepos; }
    char* nextLine() { return getLine(); }
-   char* getLine() { if (pushed) { pushed=false; return buf(); }
-                            else return getLine(file);  }
-   char* getLine(FILE* stream) {
-                 if (pushed) { pushed=false; return buf(); }
-                          else return getLine(stream, filepos); }
+   char* getLine();
+   char* getLine(FILE* stream);
    char* getLine(FILE* stream, off_t& f_pos); //read a line from a stream and update
                            // the given file position
    void pushBack() { if (lcount>0) pushed=true; } // "undo" the last getLine request
             // so the next call will in fact return the same line
-   GLineReader(const char* fname):closeFile(false),buf(1024), textlen(0),
-		   isEOF(false),file(NULL),filepos(0), pushed(false), lcount(0) {
-      FILE* f=fopen(fname, "rb");
-      if (f==NULL) GError("Error opening file '%s'!\n",fname);
-      closeFile=true;
-      file=f;
-      }
+   GLineReader(const char* fname, bool allowCompressed=true);
    GLineReader(FILE* stream=NULL, off_t fpos=0):closeFile(false),buf(1024),
-		   textlen(0), isEOF(false),file(stream),
+		   textlen(0), isEOF(false),file(stream), zfile(NULL), isgzip(false),
 		   filepos(fpos), pushed(false), lcount(0) {
      }
-   ~GLineReader() {
-     if (closeFile) fclose(file);
-     }
+   ~GLineReader();
 };
 
 

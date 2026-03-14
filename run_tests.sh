@@ -34,13 +34,23 @@ run_test "fasta-ranges" tests/wrk/fasta_ranges.tsv tests/expected/fasta_ranges.t
   fasta-ranges tests/wrk/genome.fa tests/data/fasta_ranges.tsv
 run_test "annotation.gff summary" tests/wrk/annotation_gff.summary.tsv \
   tests/expected/annotation_gff.summary.tsv gff-summary tests/data/annotation.gff
+run_test "annotation.gff.gz summary" tests/wrk/annotation_gff_gz.summary.tsv \
+  tests/expected/annotation_gff.summary.tsv gff-summary tests/data/annotation.gff.gz
 run_test "annotation.gtf summary" tests/wrk/annotation_gtf.summary.tsv \
   tests/expected/annotation_gtf.summary.tsv gff-summary tests/data/annotation.gtf
+run_test "annotation.gtf.gz summary" tests/wrk/annotation_gtf_gz.summary.tsv \
+  tests/expected/annotation_gtf.summary.tsv gff-summary tests/data/annotation.gtf.gz
 run_test "transcripts.gtf summary" tests/wrk/transcripts_gtf.summary.tsv \
   tests/expected/transcripts_gtf.summary.tsv gff-summary tests/data/transcripts.gtf
+run_test "transcripts.gtf.gz summary" tests/wrk/transcripts_gtf_gz.summary.tsv \
+  tests/expected/transcripts_gtf.summary.tsv gff-summary tests/data/transcripts.gtf.gz
 run_test "annotation.gff transcript-seq" tests/wrk/annotation_gff.spliced.tsv \
   tests/expected/annotation_gff.spliced.tsv transcript-seq tests/data/annotation.gff tests/wrk/genome.fa
+run_test "annotation.gff.gz transcript-seq" tests/wrk/annotation_gff_gz.spliced.tsv \
+  tests/expected/annotation_gff.spliced.tsv transcript-seq tests/data/annotation.gff.gz tests/wrk/genome.fa
 run_test "annotation.gtf transcript-seq" tests/wrk/annotation_gtf.spliced.tsv \
   tests/expected/annotation_gtf.spliced.tsv transcript-seq tests/data/annotation.gtf tests/wrk/genome.fa
+run_test "annotation.gtf.gz transcript-seq" tests/wrk/annotation_gtf_gz.spliced.tsv \
+  tests/expected/annotation_gtf.spliced.tsv transcript-seq tests/data/annotation.gtf.gz tests/wrk/genome.fa
 
 echo "All tests passed successfully!"

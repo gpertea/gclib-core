@@ -1384,7 +1384,17 @@ BEDLine* GffReader::nextBEDLine() {
  while (bedline==NULL) {
 	int llen=0;
 	buflen=GFF_LINELEN-1;
-	char* l=fgetline(linebuf, buflen, fh, &fpos, &llen);
+	char* l=NULL;
+	if (lineReader!=NULL) {
+		l=lineReader->nextLine();
+		if (l!=NULL) {
+			fpos=lineReader->getfpos();
+			llen=lineReader->linelen();
+		}
+	}
+	else {
+		l=fgetline(linebuf, buflen, fh, &fpos, &llen);
+	}
 	if (l==NULL) return NULL;
 	int ns=0; //first nonspace position
 	while (l[ns]!=0 && isspace(l[ns])) ns++;
@@ -1405,12 +1415,22 @@ GffLine* GffReader::nextGffLine() {
  while (gffline==NULL) {
     int llen=0;
     buflen=GFF_LINELEN-1;
-    char* l=fgetline(linebuf, buflen, fh, &fpos, &llen);
+    char* l=NULL;
+    if (lineReader!=NULL) {
+    	l=lineReader->nextLine();
+    	if (l!=NULL) {
+    		fpos=lineReader->getfpos();
+    		llen=lineReader->linelen();
+    	}
+    }
+    else {
+    	l=fgetline(linebuf, buflen, fh, &fpos, &llen);
+    }
     if (l==NULL) {
          return NULL; //end of file
          }
 #ifdef CUFFLINKS
-     _crc_result.process_bytes( linebuf, llen );
+     _crc_result.process_bytes( l, llen );
 #endif
     int ns=0; //first nonspace position
     bool commentLine=false;
