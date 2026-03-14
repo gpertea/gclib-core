@@ -1,1 +1,3 @@
 *.o
+gclib-test
+tests/wrk/
