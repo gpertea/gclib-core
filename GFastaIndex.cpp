@@ -24,7 +24,7 @@ void GFastaIndex::addRecord(const char* seqname, int64_t seqlen, off_t foffs, in
          }
 }
 
-int GFastaIndex::loadIndex(const char* finame) { //load record info from existing fasta index
+int64_t GFastaIndex::loadIndex(const char* finame) { //load record info from existing fasta index
     if (finame==NULL) finame=fai_name;
     if (finame!=fai_name) {
       fai_name=Gstrdup(finame);
@@ -63,7 +63,7 @@ int GFastaIndex::loadIndex(const char* finame) { //load record info from existin
     return records.Count();
 }
 
-int GFastaIndex::buildIndex() {
+int64_t GFastaIndex::buildIndex() {
     //this parses the whole fasta file, so it could be slow for large files
 	//builds the index in memory only
     if (fa_name==NULL)
@@ -82,7 +82,7 @@ int GFastaIndex::buildIndex() {
     off_t newSeqOffset=0;
     //int prevOffset=0;
     char* seqname=NULL;
-    int last_len=0;
+    int64_t last_len=0;
     bool mustbeLastLine=false; //true if the line length decreases
     while ((s=fl.nextLine())!=NULL) {
      if (s[0]=='>') {
@@ -107,11 +107,13 @@ int GFastaIndex::buildIndex() {
         mustbeLastLine=false;
      } //defline parsing
      else { //sequence line
-       int llen=fl.tlength();
-       int lblen=fl.blength(); //fl.getFpos()-prevOffset;
+       int64_t llen=fl.tlength();
+       int64_t lblen=fl.blength(); //fl.getFpos()-prevOffset;
+       if (llen>INT_MAX || lblen>INT_MAX)
+         GError("Error: FASTA line length exceeds supported storage width.\n");
        if (newSeq) { //first sequence line after defline
-          line_len=llen;
-          line_blen=lblen;
+          line_len=(int)llen;
+          line_blen=(int)lblen;
         }
         else {//next seq lines after first
           if (mustbeLastLine) {
@@ -143,19 +145,19 @@ int GFastaIndex::buildIndex() {
 }
 
 
-int GFastaIndex::storeIndex(const char* finame) { //write the hash to a file
+int64_t GFastaIndex::storeIndex(const char* finame) { //write the hash to a file
     if (records.Count()==0)
        GError("Error at GFastaIndex:storeIndex(): no records found!\n");
     FILE* fai=fopen(finame, "w");
     if (fai==NULL) GError("Error creating fasta index file: %s\n",finame);
-    int rcount=storeIndex(fai);
+    int64_t rcount=storeIndex(fai);
     GFREE(fai_name);
     fai_name=Gstrdup(finame);
     return rcount;
 }
 
-int GFastaIndex::storeIndex(FILE* fai) {
-  int rcount=0;
+int64_t GFastaIndex::storeIndex(FILE* fai) {
+  int64_t rcount=0;
   GList<GFastaRec> reclist(true,false,true); //sorted, don't free members, unique
   records.startIterate();
   GFastaRec* rec=NULL;
@@ -163,7 +165,7 @@ int GFastaIndex::storeIndex(FILE* fai) {
     reclist.Add(rec);
   }
   //reclist has records sorted by file offset
-  for (int i=0;i<reclist.Count();i++) {
+  for (int64_t i=0;i<reclist.Count();i++) {
 #ifdef _WIN32
     int written=fprintf(fai, "%s\t%" PRId64 "\t%ld\t%d\t%d\n",
             reclist[i]->seqname,reclist[i]->seqlen,(long)reclist[i]->fpos,

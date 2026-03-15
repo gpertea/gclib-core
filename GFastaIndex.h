@@ -50,11 +50,11 @@ class GFastaIndex {
     return records.Find(seqname);
     }
   bool hasIndex() { return haveFai; }
-  int loadIndex(const char* finame);
-  int buildIndex(); //build index in memory by parsing the whole fasta file
-  int storeIndex(const char* finame);
-  int storeIndex(FILE* fai);
-  int getCount() { return records.Count(); }
+  int64_t loadIndex(const char* finame);
+  int64_t buildIndex(); //build index in memory by parsing the whole fasta file
+  int64_t storeIndex(const char* finame);
+  int64_t storeIndex(FILE* fai);
+  int64_t getCount() { return records.Count(); }
   GFastaIndex(const char* fname, const char* finame=NULL):records() {
     if (fileExists(fname)!=2) GError("Error: fasta file %s not found!\n",fname);
     if (fileSize(fname)<=0) GError("Error: invalid fasta file %s !\n",fname);

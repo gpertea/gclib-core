@@ -432,13 +432,6 @@ struct GSeg {
         return (rend<end)? rend-start+1 : end-start+1;
         }
   }
-  int64_t overlapLen(int64_t rstart, int64_t rend, int* refstart) {
-     int64_t refstart64=0;
-     int64_t ovlen=overlapLen(rstart, rend, &refstart64);
-     if (refstart) *refstart=(int)refstart64;
-     return ovlen;
-  }
-
   bool contains(GSeg* s) {
 	  return (start<=s->start && end>=s->end);
   }
@@ -549,14 +542,14 @@ template<class OBJ> class GDynArray {
     }
 
     void Grow() {
-    	int delta = (fCapacity>16) ? (fCapacity>>2) : 2;
+    	int64_t delta = (fCapacity>16) ? (fCapacity>>2) : 2;
     	if (GDynArray_MAXCOUNT-delta<=fCapacity)
     		delta=GDynArray_MAXCOUNT-fCapacity;
     	if (delta<=1) GError("Error at GDynArray::Grow(): max capacity reached!\n");
     	growTo(fCapacity + delta);
     }
 #define GDynArray_ADD(item) \
-    	if (fCount==MAX_UINT-1) GError("Error at GDynArray: cannot add item, maximum count reached!\n"); \
+    	if (fCount>=GDynArray_MAXCOUNT-1) GError("Error at GDynArray: cannot add item, maximum count reached!\n"); \
     	if ((++fCount) > fCapacity) Grow(); \
     	fArray[fCount-1] = item;
 
@@ -613,19 +606,19 @@ template<class OBJ> class GDynArray {
     	if (fCount>=tcount) fCount-=tcount;
     }
 
-    void Pack() { //shrink capacity to fCount+dyn_array_defcap
-    	if (fCapacity-fCount<=dyn_array_defcap) return;
-    	int newcap=fCount+dyn_array_defcap;
-    	GREALLOC(fArray, newcap*sizeof(OBJ));
-    	fCapacity=newcap;
-    }
+	    void Pack() { //shrink capacity to fCount+dyn_array_defcap
+	    	if (fCapacity-fCount<=dyn_array_defcap) return;
+	    	int64_t newcap=fCount+dyn_array_defcap;
+	    	GREALLOC(fArray, newcap*sizeof(OBJ));
+	    	fCapacity=newcap;
+	    }
 
-    void zPack(OBJ z) { //shrink capacity to fCount+1 and adds a z terminator
-    	if (fCapacity-fCount<=1) { fArray[fCount]=z; return; }
-    	int newcap=fCount+1;
-    	GREALLOC(fArray, newcap*sizeof(OBJ));
-    	fCapacity=newcap;
-    	fArray[fCount]=z;
+	    void zPack(OBJ z) { //shrink capacity to fCount+1 and adds a z terminator
+	    	if (fCapacity-fCount<=1) { fArray[fCount]=z; return; }
+	    	int64_t newcap=fCount+1;
+	    	GREALLOC(fArray, newcap*sizeof(OBJ));
+	    	fCapacity=newcap;
+	    	fArray[fCount]=z;
     }
 
 
@@ -693,8 +686,8 @@ class GLineReader {
    char* line() { return buf(); }
    int readcount() { return lcount; } //number of lines read
    void setFile(FILE* stream) { file=stream; zfile=NULL; isgzip=false; }
-   int blength() { return buf.Count(); } //binary/buffer length, including newline character(s)
-   int charcount() { return buf.Count(); } //line length, including newline character(s)
+   int64_t blength() { return buf.Count(); } //binary/buffer length, including newline character(s)
+   int64_t charcount() { return buf.Count(); } //line length, including newline character(s)
    int tlength() { return textlen; } //text length excluding newline character(s)
    int linelen() { return textlen; } //line length, excluding newline character(s)
    //int size() { return buf.Count(); } //same as size();

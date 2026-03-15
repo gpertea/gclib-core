@@ -49,7 +49,7 @@ class GFaSeqGet {
                  // = line_len + number of EOL character(s)
   GSubSeq* lastsub;
   void initialParse(off_t fofs=0, bool checkall=true);
-  const char* loadsubseq(int64_t cstart, int& clen);
+  const char* loadsubseq(int64_t cstart, int64_t& clen);
   void finit(const char* fn, off_t fofs, bool validate);
  public:
   //GStr seqname; //current sequence name
@@ -84,27 +84,27 @@ class GFaSeqGet {
     delete lastsub;
   }
 
-  const char* seq(int64_t cstart=1, int clen=0) {
-	  int64_t cend = clen==0 ? 0 : cstart+clen-1;
-	  return getRange(cstart, cend);
-  }
+  const char* seq(int64_t cstart=1, int64_t clen=0) {
+		  int64_t cend = clen==0 ? 0 : cstart+clen-1;
+		  return getRange(cstart, cend);
+	  }
 
-  const char* subseq(int64_t cstart, int& clen);
+  const char* subseq(int64_t cstart, int64_t& clen);
   const char* getRange(int64_t cstart=1, int64_t cend=0) {
-      if (cend==0) cend=(seq_len>0)?seq_len : MAX_FASUBSEQ;
-      if (cstart>cend) { Gswap(cstart, cend); }
-      int clen=cend-cstart+1;
-      //int rdlen=clen;
-      return subseq(cstart, clen);
-  }
+	      if (cend==0) cend=(seq_len>0)?seq_len : MAX_FASUBSEQ;
+	      if (cstart>cend) { Gswap(cstart, cend); }
+	      int64_t clen=cend-cstart+1;
+	      //int rdlen=clen;
+	      return subseq(cstart, clen);
+	  }
 
   //caller is responsible for deallocating the return string
   char* copyRange(int64_t cstart, int64_t cend, bool revCmpl=false, bool upCase=false);
 
   //uncached, read and return allocated buffer
   //caller is responsible for deallocating the return string
-  char* fetchSeq(int* retlen=NULL) {
-  	int clen=(seq_len>0) ? seq_len : MAX_FASUBSEQ;
+  char* fetchSeq(int64_t* retlen=NULL) {
+  	int64_t clen=(seq_len>0) ? seq_len : MAX_FASUBSEQ;
   	if (lastsub) { delete lastsub; lastsub=NULL; }
   	subseq(1, clen);
   	if (retlen) *retlen=clen;
@@ -119,16 +119,16 @@ class GFaSeqGet {
   	return r;
   }
 
-  void loadall(uint32 max_len=0) {
+  void loadall(int64_t max_len=0) {
     //TODO: better read the whole sequence differently here - line by line
     //so when EOF or another '>' line is found, the reading stops!
-    int clen=(seq_len>0) ? seq_len : ((max_len>0) ? max_len : MAX_FASUBSEQ);
+    int64_t clen=(seq_len>0) ? seq_len : ((max_len>0) ? max_len : MAX_FASUBSEQ);
     subseq(1, clen);
     }
   void load(int64_t cstart, int64_t cend) {
      //cache as much as possible
       if (seq_len>0 && cend>seq_len) cend=seq_len; //correct a bad request
-      int clen=cend-cstart+1;
+      int64_t clen=cend-cstart+1;
       subseq(cstart, clen);
      }
   int64_t getsublen() { return lastsub!=NULL ? lastsub->sqlen : 0 ; }
@@ -164,7 +164,7 @@ class GFastaDb {
      //GStr gseqpath(fpath);
      if (fileExists(fastaPath)>1) { //exists and it's not a directory
             char* fainame=Gstrdup(fastaPath,4);
-            int fainamelen=strlen(fainame);
+            size_t fainamelen=strlen(fainame);
             //int fainame_len=strlen(fainame);
             if (trimSuffix(fastaPath, ".fai")) {
                //.fai index file given directly
@@ -229,11 +229,13 @@ class GFastaDb {
 	 return faseq;
   }
 
-  char* getFastaFile(const char* gseqname) {
+ char* getFastaFile(const char* gseqname) {
 	if (fastaPath==NULL) return NULL;
-	int gnl=strlen(gseqname);
-	char* s=Gstrdup(fastaPath, gnl+8);
-	int slen=strlen(s);
+		size_t gnl=strlen(gseqname);
+		if (gnl>(size_t)INT_MAX-8)
+		  GError("Error: FASTA sequence name too long: %s\n", gseqname);
+		char* s=Gstrdup(fastaPath, (int)(gnl+8));
+		size_t slen=strlen(s);
 	if (s[slen-1]!='/') {//CHPATHSEP ?
 	  s[slen]='/';
 	  slen++;

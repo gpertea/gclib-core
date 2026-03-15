@@ -48,18 +48,18 @@ char g2bit2base(byte v2bit) {
 }
 
 //in place reverse complement of nucleotide (sub)sequence
-char* reverseComplement(char* seq, int slen) {
+char* reverseComplement(char* seq, int64_t slen) {
    if (slen==0) slen=strlen(seq);
    //reverseChars(seq,len);
-   int l=0;
-   int r=slen-1;
+   int64_t l=0;
+   int64_t r=slen-1;
    char c;
    while (l<r) {
       c=seq[l];seq[l]=seq[r];
       seq[r]=c;   //this was: Gswap(str[l],str[r]);
       l++;r--;
       }
-   for (int i=0;i<slen;i++) seq[i]=ntComplement(seq[i]);
+   for (int64_t i=0;i<slen;i++) seq[i]=ntComplement(seq[i]);
    return seq;
  }
 
@@ -84,7 +84,6 @@ bool gDnaInit() {
       gdna_Ready=true;
       return true;
      }
-
 
 
 

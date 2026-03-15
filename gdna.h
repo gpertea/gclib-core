@@ -8,7 +8,7 @@ extern const char* IUPAC_COMP;
 char ntComplement(char c);
 
 //in-place reverse complement of a nucleotide (sub)sequence
-char* reverseComplement(char* seq, int slen=0);
+char* reverseComplement(char* seq, int64_t slen=0);
 
 bool gDnaInit();
 

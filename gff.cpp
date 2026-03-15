@@ -74,12 +74,12 @@ int gfo_cmpByLoc(const pointer p1, const pointer p2) {
  GffObj& g2=*((GffObj*)p2);
  if (g1.gseq_id==g2.gseq_id) {
              if (g1.start!=g2.start)
-                    return (int)(g1.start-g2.start);
+                    return (g1.start<g2.start) ? -1 : 1;
                else if (g1.getLevel()!=g2.getLevel())
-                        return (int)(g1.getLevel()-g2.getLevel());
+                        return (g1.getLevel()<g2.getLevel()) ? -1 : 1;
                     else
                         if (g1.end!=g2.end)
-                              return (int)(g1.end-g2.end);
+                              return (g1.end<g2.end) ? -1 : 1;
                         else return strcmp(g1.getID(), g2.getID());
              }
              else //return (int)(g1.gseq_id-g2.gseq_id); // input order !
@@ -92,15 +92,15 @@ int gfo_cmpRefByID(const pointer p1, const pointer p2) {
  GffObj& g2=*((GffObj*)p2);
  if (g1.gseq_id==g2.gseq_id) {
              if (g1.start!=g2.start)
-                    return (int)(g1.start-g2.start);
+                    return (g1.start<g2.start) ? -1 : 1;
                else if (g1.getLevel()!=g2.getLevel())
-                        return (int)(g1.getLevel()-g2.getLevel());
+                        return (g1.getLevel()<g2.getLevel()) ? -1 : 1;
                     else
                         if (g1.end!=g2.end)
-                              return (int)(g1.end-g2.end);
+                              return (g1.end<g2.end) ? -1 : 1;
                         else return strcmp(g1.getID(), g2.getID());
              }
-             else return (g1.gseq_id-g2.gseq_id); // sort refs by their id# order
+             else return (g1.gseq_id<g2.gseq_id) ? -1 : 1; // sort refs by their id# order
 }
 
 //only for multi-exon transcripts: comparison/ordering function
@@ -114,12 +114,12 @@ int txCmpByIntrons(const pointer p1, const pointer p2) {
   if (a->gseq_id != b->gseq_id) return a->gseq_id < b->gseq_id ? -1 : 1;
   if (a->strand != b->strand) return a->strand < b->strand ? -1 : 1;
   // compare intron chains by their start and end, regardless of exon count
-  int min_exon_count = GMIN(a->exons.Count(), b->exons.Count());
-  for (int i = 0; i < min_exon_count-1; ++i) {
-        int a_istart = a->exons[i]->end+1;
-        int a_iend = a->exons[i+1]->start-1;
-        int b_istart = b->exons[i]->end+1;
-        int b_iend = b->exons[i+1]->start-1;
+  int64_t min_exon_count = GMIN(a->exons.Count(), b->exons.Count());
+  for (int64_t i = 0; i < min_exon_count-1; ++i) {
+        int64_t a_istart = a->exons[i]->end+1;
+        int64_t a_iend = a->exons[i+1]->start-1;
+        int64_t b_istart = b->exons[i]->end+1;
+        int64_t b_iend = b->exons[i+1]->start-1;
 
         if (a_istart != b_istart) return a_istart < b_istart ? -1 : 1;
         if (a_iend != b_iend) return a_iend < b_iend ? -1 : 1;
@@ -145,22 +145,22 @@ int txCmpByExons(const pointer p1, const pointer p2) {
 	int64_t t2_start = t2->start;
 	int64_t t2_end = t2->end;
 
-   if (t1_start != t2_start) return (int)(t1_start - t2_start);
-   if (t1_end != t2_end) return (int)(t1_end - t2_end);
+   if (t1_start != t2_start) return (t1_start < t2_start) ? -1 : 1;
+   if (t1_end != t2_end) return (t1_end < t2_end) ? -1 : 1;
 
 
-   int minExonCount = GMIN(t1->exons.Count(), t2->exons.Count());
-   for (int i = 0; i < minExonCount; ++i) {
+   int64_t minExonCount = GMIN(t1->exons.Count(), t2->exons.Count());
+   for (int64_t i = 0; i < minExonCount; ++i) {
         int64_t e1_start = t1->exons[i]->start;
 		int64_t e1_end = t1->exons[i]->end;
 		int64_t e2_start = t2->exons[i]->start;
 		int64_t e2_end = t2->exons[i]->end;
 
-        if (e1_start != e2_start) return (int)(e1_start - e2_start);
-        if (e1_end != e2_end) return (int)(e1_end - e2_end);
+        if (e1_start != e2_start) return (e1_start < e2_start) ? -1 : 1;
+        if (e1_end != e2_end) return (e1_end < e2_end) ? -1 : 1;
     }
 
-    if (t1->exons.Count() != t2->exons.Count()) return t1->exons.Count()-t2->exons.Count();
+    if (t1->exons.Count() != t2->exons.Count()) return t1->exons.Count() < t2->exons.Count() ? -1 : 1;
 
     return 0; // Equal if they have the same number and position of exons
 }
@@ -946,7 +946,7 @@ void GffObj::setCDS(GffObj* t) {
 	}
 }
 
-int GffObj::readExon(GffReader& reader, GffLine& gl) {
+int64_t GffObj::readExon(GffReader& reader, GffLine& gl) {
   // -- this should only be called before ::finalize()!
   //should make sure to get the right subftype_id!
   if (!isTranscript() && gl.exontype>exgffNone) {
@@ -997,7 +997,7 @@ int GffObj::readExon(GffReader& reader, GffLine& gl) {
        } //incoming subfeature is of different type
     } //new subfeature type
   } //non-mRNA parent
-  int eidx=-1;
+  int64_t eidx=-1;
   GList<GffExon>* segs=NULL; //either cds or &exons
   if (gl.is_cds) {
      if (cdss==NULL)
@@ -1022,10 +1022,10 @@ int GffObj::readExon(GffReader& reader, GffLine& gl) {
   return eidx;
 }
 
-int GffObj::addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override) {
+int64_t GffObj::addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override) {
 	int ex_type=(exontype_override!=exgffNone) ? exontype_override : gl.exontype;
 	GffScore exon_score(gl.score, gl.score_decimals);
-	int eidx=addExon(gl.fstart, gl.fend, ex_type, gl.phase, exon_score, &segs);
+	int64_t eidx=addExon(gl.fstart, gl.fend, ex_type, gl.phase, exon_score, &segs);
 	if (&segs==cdss && isGene() && gl.ID!=NULL && eidx>=0) {
      //special NCBI cases where CDS can be treated as discontiguous features, grouped by their ID
 	 //-- used for genes with X_gene_segment features
@@ -1037,21 +1037,21 @@ int GffObj::addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override)
 	return eidx;
 }
 
-int GffObj::exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int* ovlen, int start_idx) {
+int64_t GffObj::exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int64_t* ovlen, int64_t start_idx) {
 	//return the exons' index for the overlapping OR ADJACENT exon
 	//ovlen, if given, will return the overlap length
 	//if (s>e) Gswap(s,e);
-	for (int i=start_idx;i<segs.Count();i++) {
+	for (int64_t i=start_idx;i<segs.Count();i++) {
 		if (segs[i]->start>e+1) break;
 		if (s-1>segs[i]->end) continue;
 		//-- overlap/adjacent if we are here:
 		if (ovlen!=NULL) {
-			int ovlend= (segs[i]->end>e) ? e : segs[i]->end;
+			int64_t ovlend= (segs[i]->end>e) ? e : segs[i]->end;
 			*ovlen= ovlend - ((s>segs[i]->start)? s : segs[i]->start)+1;
 		}
 		return i;
 	} //for each exon
-	*ovlen=0;
+	if (ovlen!=NULL) *ovlen=0;
 	return -1;
 }
 
@@ -1062,13 +1062,13 @@ void GffObj::transferCDS(GffExon* cds) {
 	 if (CDstart==0 || CDstart>cds->start) CDstart=cds->start;
 }
 
-int GffObj::addExon(int64_t segstart, int64_t segend, int8_t exontype, char phase, GffScore exon_score, GList<GffExon>* segs) {
+int64_t GffObj::addExon(int64_t segstart, int64_t segend, int8_t exontype, char phase, GffScore exon_score, GList<GffExon>* segs) {
    if (segstart>segend) { Gswap(segstart, segend); }
    if (segs==NULL) segs=&exons;
 	if (exontype!=exgffNone) { //check for overlaps between exon/CDS-type segments
 		//addExonSegment(gl.fstart, gl.fend, gl.score, gl.phase, gl.is_cds, exontype_override);
-		int ovlen=0;
-		int oi=-1;
+		int64_t ovlen=0;
+		int64_t oi=-1;
 	    while ((oi=exonOverlapIdx(*segs, segstart, segend, &ovlen, oi+1))>=0) {
 	        //note: ovlen==0 for adjacent segments
 		    if ((*segs)[oi]->exontype>exgffNone &&
@@ -1096,7 +1096,7 @@ int GffObj::addExon(int64_t segstart, int64_t segend, int8_t exontype, char phas
 	   start=segstart;
 	   end=segend;
    }
-   int eidx=segs->Add(enew);
+   int64_t eidx=segs->Add(enew);
    if (eidx<0) {
     //this would actually be possible if the object is a "Gene" and "exons" are in fact isoforms
      delete enew;
@@ -1106,7 +1106,7 @@ int GffObj::addExon(int64_t segstart, int64_t segend, int8_t exontype, char phas
    if (start>segs->First()->start) start=segs->First()->start;
    if (end<segs->Last()->end) end=segs->Last()->end;
    if (isFinalized() && segs==&exons) {
-	   covlen+=(int)(exons[eidx]->end-exons[eidx]->start)+1;
+	   covlen+=exons[eidx]->end-exons[eidx]->start+1;
    }
    return eidx;
 }
@@ -1150,7 +1150,7 @@ void GffObj::expandSegment(GList<GffExon>& segs, int oi, int64_t segstart, int64
 		end=exons.Last()->end;
 		//recalculate covlen
 		covlen=0;
-		for (int i=0;i<exons.Count();++i) covlen+=exons[i]->len();
+		for (int64_t i=0;i<exons.Count();++i) covlen+=exons[i]->len();
 	  }
   }
   else {
@@ -1161,11 +1161,11 @@ void GffObj::expandSegment(GList<GffExon>& segs, int oi, int64_t segstart, int64
 
 void GffObj::removeExon(int idx) {
   if (idx<0 || idx>=exons.Count()) return;
-  int segstart=exons[idx]->start;
-  int segend=exons[idx]->end;
+  int64_t segstart=exons[idx]->start;
+  int64_t segend=exons[idx]->end;
   exons.Delete(idx);
   if (isFinalized()) {
-    covlen -= (int)(segend-segstart)+1;
+    covlen -= (segend-segstart)+1;
     start=exons.First()->start;
     end=exons.Last()->end;
     if (isCDSOnly()) { CDstart=start; CDend=end; }
@@ -1175,10 +1175,10 @@ void GffObj::removeExon(int idx) {
 void GffObj::removeExon(GffExon* p) {
 	for (int idx=0;idx<exons.Count();idx++) {
 		if (exons[idx]==p) {
-			int segstart=exons[idx]->start;
-			int segend=exons[idx]->end;
+			int64_t segstart=exons[idx]->start;
+			int64_t segend=exons[idx]->end;
 			exons.Delete(idx);
-			covlen -= (int)(segend-segstart)+1;
+			covlen -= (segend-segstart)+1;
 
 			if (exons.Count() > 0) {
 				start=exons.First()->start;
@@ -1224,7 +1224,7 @@ GffObj::GffObj(GffReader& gfrd, BEDLine& bedline):GSeg(0,0),
 	isTranscript(true);
 	gffID=Gstrdup(bedline.ID);
 	for (int i=0;i<bedline.exons.Count();++i) {
-		int eidx=this->addExon(bedline.exons[i].start, bedline.exons[i].end, exgffExon);
+		int64_t eidx=this->addExon(bedline.exons[i].start, bedline.exons[i].end, exgffExon);
 	    if (eidx<0 && gfrd.showWarnings())
 	       GMessage("Warning: failed adding segment %d-%d for %s (discarded)!\n",
 	    		   bedline.exons[i].start, bedline.exons[i].end, gffID);
@@ -1329,7 +1329,7 @@ GffObj::GffObj(GffReader &gfrd, GffLine& gffline):
 		  if (gffline.exons.Count()>0) {
 			  //for compact GFF-like transcript line format (TLF), exons were already found as attributes
 				for (int i=0;i<gffline.exons.Count();++i) {
-					int eidx=this->addExon(gffline.exons[i].start, gffline.exons[i].end, exgffExon, '.', gscore);
+					int64_t eidx=this->addExon(gffline.exons[i].start, gffline.exons[i].end, exgffExon, '.', gscore);
 				    if (eidx<0 && gfrd.showWarnings())
 				       GMessage("Warning: failed adding exon %d-%d for %s (discarded)!\n",
 				    		   gffline.exons[i].start, gffline.exons[i].end, gffID);
@@ -1345,7 +1345,7 @@ GffObj::GffObj(GffReader &gfrd, GffLine& gffline):
 			    //for compact GFF-like transcript line format (TLF), CDS might be already found as attributes
 			    if (cdss==NULL) cdss=new GList<GffExon>(true, true, false);
 				for (int i=0;i<gffline.cdss.Count();++i) {
-					int eidx=this->addExon(gffline.cdss[i].start, gffline.cdss[i].end, exgffCDS, 0, GFFSCORE_NONE, cdss);
+					int64_t eidx=this->addExon(gffline.cdss[i].start, gffline.cdss[i].end, exgffCDS, 0, GFFSCORE_NONE, cdss);
 				    if (eidx<0 && gfrd.showWarnings())
 				       GMessage("Warning: failed adding CDS segment %d-%d for %s (discarded)!\n",
 				    		   gffline.cdss[i].start, gffline.cdss[i].end, gffID);
@@ -1513,14 +1513,14 @@ GffObj* GffReader::gfoFind(const char* id, GPVec<GffObj>*& glst,
 	}
 	GffObj* gh=NULL;
 	if (gl) {
-		for (int i=0;i<gl->Count();i++) {
+		for (int64_t i=0;i<gl->Count();i++) {
 			GffObj& gfo = *(gl->Get(i));
 			if (ctg!=NULL && strcmp(ctg, gfo.getGSeqName())!=0)
 				continue;
 			if (strand && gfo.strand!='.' && strand != gfo.strand)
 				continue;
 			if (start>0) {
-				if (abs((int)start-(int)gfo.start)> (int)GFF_MAX_LOCUS)
+				if (GABS(start-gfo.start)>GFF_MAX_LOCUS)
 					continue;
 				if (end>0 && (gfo.start>end || gfo.end<start))
 					continue;
@@ -1615,16 +1615,16 @@ bool GffReader::readExonFeature(GffObj* prevgfo, GffLine* gffline, GHash<CNonExo
 			return true;
 		}
 	}
-	int gdist=(gffline->fstart>prevgfo->end) ? gffline->fstart-prevgfo->end :
+	int64_t gdist=(gffline->fstart>prevgfo->end) ? gffline->fstart-prevgfo->end :
 			((gffline->fend<prevgfo->start)? prevgfo->start-gffline->fend :
 					0 );
-	if (gdist>(int)GFF_MAX_LOCUS) { //too far apart, most likely this is a duplicate ID
+	if (gdist>GFF_MAX_LOCUS) { //too far apart, most likely this is a duplicate ID
 		GMessage("Error: duplicate GFF ID '%s' (or exons too far apart)!\n",prevgfo->gffID);
 		//validation_errors = true;
 		r=false;
 		if (!gff_warns) exit(1);
 	}
-	int eidx=prevgfo->readExon(*this, *gffline);
+	int64_t eidx=prevgfo->readExon(*this, *gffline);
 	if (pex!=NULL && eidx>=0) {
 		//if (eidx==0 && gffline->exontype>0) prevgfo->isTranscript(true);
 		if (gffline->ID!=NULL && gffline->exontype==exgffNone)
@@ -2049,7 +2049,7 @@ bool GffObj::reduceExonAttrs(GList<GffExon>& segs) {
 	return attrs_discarded;
 }
 //return the segs index of segment containing coord:
-int GffObj::whichExon(int64_t coord, GList<GffExon>* segs) {
+int64_t GffObj::whichExon(int64_t coord, GList<GffExon>* segs) {
 	 //segs MUST be sorted by GSeg order (start coordinate)
 	if (segs==NULL) segs=&exons;
 	if (segs->Count()==0) return -1;
@@ -2057,15 +2057,15 @@ int GffObj::whichExon(int64_t coord, GList<GffExon>* segs) {
 		return -1;
 	if (segs->Count()<6) {
 		//simple scan
-		for (int i=0;i<segs->Count();i++)
+		for (int64_t i=0;i<segs->Count();i++)
 			if ((*segs)[i]->overlap(coord))
 				return i;
 		return -1;
 	}
 	else { //use quick search
-		int i=0;
-		int l=0; //lower boundary
-		int h=segs->Count()-1; //higher boundary
+		int64_t i=0;
+		int64_t l=0; //lower boundary
+		int64_t h=segs->Count()-1; //higher boundary
 		while (l<=h) {
 			i = (l+h) >> 1; //range midpoint
 			if (coord > segs->Get(i)->end)
@@ -2134,7 +2134,7 @@ bool GffObj::processGeneSegments(GffReader* gfr) {
         for (int si=0;si<geneSegs.Count();si++) {
         	GffObj& t=*(children[geneSegs[si]]);
         	//if (t.hasCDS() || t.cdss!=NULL) continue; //already transferred
-        	int novl=-1;
+        	int64_t novl=-1;
         	if (gc.containedBy(t, novl))
         		gc.addMatch(geneSegs[si], novl, si);
         }
@@ -2230,7 +2230,7 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 		//there are GFFs out there which only provide UTR and CDS records instead of full exons
 		//so make sure we add all CDS segments to exons, if they are not already there
 		for (int i=0;i<cdss->Count();++i) {
-			int eidx=addExon((*cdss)[i]->start, (*cdss)[i]->end, exgffExon, 0, (*cdss)[i]->score);
+			int64_t eidx=addExon((*cdss)[i]->start, (*cdss)[i]->end, exgffExon, 0, (*cdss)[i]->score);
 			if (eidx<0) GError("Error: could not reconcile CDS %d-%d with exons of transcript %s\n",
 					(*cdss)[i]->start, (*cdss)[i]->end, gffID);
 		}
@@ -2261,14 +2261,14 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 	//merge close exons if requested
 	if (exons.Count()>0 && isTranscript()) {
 		if (gfr->merge_CloseExons) {
-			for (int i=0;i<exons.Count()-1;i++) {
-				int ni=i+1;
+			for (int64_t i=0;i<exons.Count()-1;i++) {
+				int64_t ni=i+1;
 				int64_t mend=exons[i]->end;
 				while (ni<exons.Count()) {
-					int dist=(int)(exons[ni]->start-mend-1); //<0 = overlap, 0 = adjacent, >0 = bases apart
+					int64_t dist=exons[ni]->start-mend-1; //<0 = overlap, 0 = adjacent, >0 = bases apart
 					if (dist>GFF_MIN_INTRON) break; //no merging with next segment
 					if (gfr!=NULL && gfr->gff_warns && dist!=0 && (exons[ni]->exontype!=exgffUTR && exons[i]->exontype!=exgffUTR)) {
-						GMessage("Warning: merging adjacent/overlapping segments (distance=%d) of %s on %s (%d-%d, %d-%d)\n",
+						GMessage("Warning: merging adjacent/overlapping segments (distance=%" PRId64 ") of %s on %s (%" PRId64 "-%" PRId64 ", %" PRId64 "-%" PRId64 ")\n",
 								dist, gffID, getGSeqName(), exons[i]->start, exons[i]->end,exons[ni]->start, exons[ni]->end);
 					}
 					mend=exons[ni]->end;
@@ -2322,8 +2322,8 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 		bool cds_exComp=true; //CDSs are exon-compatible (no need to keep them separately)
 		if (cdss->Count()==1) {
 			//check that the CDS segment is within a single exon
-			int start_eidx=-1;
-			int end_eidx=-1;
+			int64_t start_eidx=-1;
+			int64_t end_eidx=-1;
 			for (int i=0;i<exons.Count();i++) {
 				//GMessage("[DBG:] checking if CDS %d-%d is within exon %d-%d\n", CDstart, CDend, exons[i]->start,
 				//		exons[i]->end);
@@ -2344,10 +2344,10 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 				cds_exComp=false;
 			} else { //2 or more CDS segments
 				//CDSs should be intron compatible with exons, and CDS ends should be within exons
-				int imax=exons.Count()-1;
-				int jmax=cdss->Count()-1;
-				int i=0;
-				int j=0;
+				int64_t imax=exons.Count()-1;
+				int64_t jmax=cdss->Count()-1;
+				int64_t i=0;
+				int64_t j=0;
 				//find which exon has CDstart
 				for (i=0;i<=imax;++i)
 					if (CDstart>=exons[i]->start
@@ -2375,7 +2375,7 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 				for (int i=0;i<cdss->Count();i++)
 					exons[i]->phase=cdss->Get(i)->phase;
 			if (gfr->keep_Attrs && !gfr->noExonAttrs) {
-				int eidx=whichExon((*cdss)[0]->start, &exons);
+				int64_t eidx=whichExon((*cdss)[0]->start, &exons);
 				if (eidx<0)
 					GError("Error finding CDS coordinate inside exons (?) for %s\n",
 						    gffID);
@@ -2678,36 +2678,36 @@ int GffObj::removeExonAttr(GffExon& exon, int aid, const char* attrval) {
 }
 
 
-char* GffObj::getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst) {
+char* GffObj::getUnspliced(GFaSeqGet* faseq, int64_t* rlen, GMapSegments* seglst) {
 
     if (faseq==NULL) { GMessage("Warning: getUnspliced(NULL,.. ) called!\n");
         return NULL;
     }
     //restore normal coordinates:
     if (exons.Count()==0) return NULL;
-    int fspan=end-start+1;
+    int64_t fspan=end-start+1;
     const char* gsubseq=faseq->subseq(start, fspan);
     if (gsubseq==NULL) {
-        GError("Error getting subseq for %s (%d..%d)!\n", gffID, start, end);
+        GError("Error getting subseq for %s (%" PRId64 "..%" PRId64 ")!\n", gffID, start, end);
     }
     char* unspliced=NULL;
 
-    int seqstart=exons.First()->start;
-    int seqend=exons.Last()->end;
+    int64_t seqstart=exons.First()->start;
+    int64_t seqend=exons.Last()->end;
 
-    int unsplicedlen = 0;
+    int64_t unsplicedlen = 0;
     if (seglst)
     	seglst->Clear(strand);
     unsplicedlen += seqend - seqstart + 1;
 
-    GMALLOC(unspliced, unsplicedlen+1); //allocate more here
+    GMALLOC(unspliced, (size_t)(unsplicedlen+1)); //allocate more here
     //uint seqstart, seqend;
-    int s = 0; //resulting nucleotide counter
+    int64_t s = 0; //resulting nucleotide counter
     if (strand=='-')
     {
         if (seglst!=NULL)
             seglst->add(s+1,s+1+seqend-seqstart, seqstart, seqend);
-        for (int i=seqend;i>=seqstart;i--)   {
+        for (int64_t i=seqend;i>=seqstart;i--)   {
             unspliced[s] = ntComplement(gsubseq[i-start]);
             s++;
         }//for each nt
@@ -2716,7 +2716,7 @@ char* GffObj::getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst) {
       // + strand
         if (seglst!=NULL)
             seglst->add(s+1,s+1+seqend-seqstart, seqstart, seqend);
-        for (int i=seqstart;i<=seqend;i++) {
+        for (int64_t i=seqstart;i<=seqend;i++) {
             unspliced[s]=gsubseq[i-start];
             s++;
         }//for each nt
@@ -2747,7 +2747,7 @@ char* GffObj::getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst) {
 	 covlen-=padLeft+padRight;
  }
 
-char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds_start, int64_t* cds_end,
+char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int64_t* rlen, int64_t* cds_start, int64_t* cds_end,
                          GMapSegments* seglst, bool cds_open) {
 	//cds_open only makes sense when CDSonly is true by overriding CDS 3'end such that the end of
 	//the sequence beyond the 3' CDS end is also returned (the 3' UTR is appended to the CDS)
@@ -2763,14 +2763,14 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds
   if (CDSonly && this->cdss!=NULL)
 	  xsegs=this->cdss;
   if (xsegs->Count()==0) return NULL;
-  int fspan=end-start+1;
+  int64_t fspan=end-start+1;
   const char* gsubseq=faseq->subseq(start, fspan);
   if (gsubseq==NULL) {
-        GError("Error getting subseq for %s (%d..%d)!\n", gffID, start, end);
+        GError("Error getting subseq for %s (%" PRId64 "..%" PRId64 ")!\n", gffID, start, end);
   }
-  if (fspan<(int)(end-start+1)) {
+  if (fspan<end-start+1) {
 	  //special case: stop coordinate was extended past the gseq length, must adjust
-     int endadj=end-start+1-fspan;
+     int64_t endadj=end-start+1-fspan;
      int64_t prevend=end;
      end-=endadj;
      if (CDend>end) CDend=end;
@@ -2784,9 +2784,9 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds
      }
   }
   char* spliced=NULL;
-  GMALLOC(spliced, covlen+1); //IMPORTANT: covlen must be correct here!
+  GMALLOC(spliced, (size_t)(covlen+1)); //IMPORTANT: covlen must be correct here!
   int64_t g_start=0, g_end=0;
-  int cdsadj=0;
+  int64_t cdsadj=0;
   if (CDphase=='1' || CDphase=='2') {
       cdsadj=CDphase-'0';
   }
@@ -2808,13 +2808,13 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds
     cds_open=false; //override mistaken user request
   }
   if (seglst!=NULL) seglst->Clear(strand);
-  int s=0; //resulting nucleotide counter
+  int64_t s=0; //resulting nucleotide counter
   if (strand=='-') {
     if (cds_open) {// appending 3'UTR
     	g_start=xsegs->First()->start;
     	//CDS_start=g_start;
     }
-    for (int x=xsegs->Count()-1;x>=0;x--) {
+    for (int64_t x=xsegs->Count()-1;x>=0;x--) {
        int64_t sgstart=xsegs->Get(x)->start;
        int64_t sgend=xsegs->Get(x)->end;
        if (g_end<sgstart || g_start>sgend) continue;
@@ -2844,7 +2844,7 @@ char* GffObj::getSpliced(GFaSeqGet* faseq, bool CDSonly, int* rlen, int64_t* cds
       	g_end=xsegs->Last()->end;
       	//CDS_stop=g_end;
     }
-    for (int x=0;x<xsegs->Count();x++) {
+    for (int64_t x=0;x<xsegs->Count();x++) {
       int64_t sgstart=xsegs->Get(x)->start;
       int64_t sgend=xsegs->Get(x)->end;
       if (g_end<sgstart || g_start>sgend) continue;
@@ -3194,20 +3194,20 @@ void GffObj::printGxf(FILE* fout, GffPrintMode gffp,
 }
 
 void GffObj::updateCDSPhase(GList<GffExon>& segs) {
-  int cdsacc=0;
+  int64_t cdsacc=0;
   if (CDphase=='1' || CDphase=='2') {
       cdsacc+= 3-(CDphase-'0');
   }
   else CDphase='0';
   if (strand=='-') { //reverse strand
-     for (int i=segs.Count()-1;i>=0;i--) {
-         segs[i]->phase='0'+ (3-cdsacc%3)%3;
+     for (int64_t i=segs.Count()-1;i>=0;i--) {
+         segs[i]->phase=(char)('0'+ (3-cdsacc%3)%3);
          cdsacc+=segs[i]->end-segs[i]->start+1;
      }
   }
     else { //forward strand
-     for (int i=0;i<segs.Count();i++) {
-         segs[i]->phase='0'+ (3-cdsacc%3)%3;
+     for (int64_t i=0;i<segs.Count();i++) {
+         segs[i]->phase=(char)('0'+ (3-cdsacc%3)%3);
          cdsacc+=segs[i]->end-segs[i]->start+1;
      }
   }
@@ -3219,19 +3219,19 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
   cds.Clear();
   if (cdss!=NULL) {
 	//copy directly from cdss list
-	for (int i=0;i<cdss->Count();i++) {
+	for (int64_t i=0;i<cdss->Count();i++) {
 		cdseg=(*cdss->Get(i));
 		cdseg.sharedAttrs=true;
 		cds.Add(cdseg);
 	}
     return;
   }
-  int cdsacc=0;
+  int64_t cdsacc=0;
   if (CDphase=='1' || CDphase=='2') {
       cdsacc+= 3-(CDphase-'0');
   }
   if (strand=='-') {
-     for (int x=exons.Count()-1;x>=0;x--) {
+     for (int64_t x=exons.Count()-1;x>=0;x--) {
         int64_t sgstart=exons[x]->start;
         int64_t sgend=exons[x]->end;
         if (CDend<sgstart || CDstart>sgend) continue;
@@ -3242,7 +3242,7 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
         cdseg.start=sgstart;
         cdseg.end=sgend;
         //cdseg.phase='0'+(cdsacc>0 ? (3-cdsacc%3)%3 : 0);
-        cdseg.phase='0'+ (3-cdsacc%3)%3;
+        cdseg.phase=(char)('0'+ (3-cdsacc%3)%3);
         cdsacc+=sgend-sgstart+1;
         cdseg.attrs=exons[x]->attrs;
         cdseg.sharedAttrs=true;
@@ -3251,7 +3251,7 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
      cds.Reverse();
      } // - strand
     else { // + strand
-     for (int x=0;x<exons.Count();x++) {
+     for (int64_t x=0;x<exons.Count();x++) {
        int64_t sgstart=exons[x]->start;
        int64_t sgend=exons[x]->end;
        if (CDend<sgstart || CDstart>sgend) continue;
@@ -3262,7 +3262,7 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
        cdseg.start=sgstart;
        cdseg.end=sgend;
        //cdseg.phase='0'+(cdsacc>0 ? (3-cdsacc%3)%3 : 0);
-       cdseg.phase='0' + (3-cdsacc%3)%3 ;
+       cdseg.phase=(char)('0' + (3-cdsacc%3)%3);
        cdsacc+=sgend-sgstart+1;
        cdseg.attrs=exons[x]->attrs;
        cdseg.sharedAttrs=true;
@@ -3275,14 +3275,14 @@ void GffObj::getCDSegs(GVec<GffExon>& cds) {
 //-- transcript match/overlap classification functions
 
 
-char transcriptMatch(GffObj &a, GffObj &b, int &ovlen, int trange, bool cdsMatch)
+char transcriptMatch(GffObj &a, GffObj &b, int64_t &ovlen, int64_t trange, bool cdsMatch)
 {
 	// return '=' if exact exon match or transcripts ends are within tdelta distance
 	//  '~' if intron-chain match (or 80% overlap, for single-exon)
 	//  '-' if CDS chains do not match but otherwise would be '=' or '~'
 	//  or 0 otherwise
-	int imax = a.exons.Count() - 1;
-	int jmax = b.exons.Count() - 1;
+	int64_t imax = a.exons.Count() - 1;
+	int64_t jmax = b.exons.Count() - 1;
 	ovlen = 0;
 	if (imax != jmax)
 		return false; // different number of exons, cannot match
@@ -3294,7 +3294,7 @@ char transcriptMatch(GffObj &a, GffObj &b, int &ovlen, int trange, bool cdsMatch
 	// check intron overlaps
 	ovlen = a.exons[0]->end - (GMAX(a.start, b.start)) + 1;
 	ovlen += (GMIN(a.end, b.end)) - a.exons.Last()->start;
-	for (int i = 1; i <= imax; i++) {
+	for (int64_t i = 1; i <= imax; i++) {
 		if (i < imax)
 			ovlen += a.exons[i]->len();
 		if ((a.exons[i - 1]->end != b.exons[i - 1]->end) ||
@@ -3304,8 +3304,8 @@ char transcriptMatch(GffObj &a, GffObj &b, int &ovlen, int trange, bool cdsMatch
 	//--- full intron chain match
 	char result = 0;
 	// check if it's an exact
-	if (abs((int)a.exons[0]->start - (int)b.exons[0]->start) <= trange &&
-		abs((int)a.exons.Last()->end - (int)b.exons.Last()->end) <= trange)
+	if (GABS(a.exons[0]->start - b.exons[0]->start) <= trange &&
+		GABS(a.exons.Last()->end - b.exons.Last()->end) <= trange)
 		  result = '=';
 	else  result = '~';
 	if (!cdsMatch) return result;
@@ -3317,40 +3317,40 @@ char transcriptMatch(GffObj &a, GffObj &b, int &ovlen, int trange, bool cdsMatch
 	return result;
 }
 
-bool txStructureMatch(GffObj& a, GffObj& b, double SE_tolerance, int ME_range) {
+bool txStructureMatch(GffObj& a, GffObj& b, double SE_tolerance, int64_t ME_range) {
     // Check if transcripts are on the same genomic sequence and overlap
     if (a.gseq_id != b.gseq_id || !a.overlap(b.start, b.end)) {
         return false; // No match if they are on different sequences or do not overlap
     }
-    int exc = a.exons.Count();
+    int64_t exc = a.exons.Count();
     if (exc != b.exons.Count())
 		return false; // No match if they have different exon counts
     // Check for multi-exon transcripts with identical intron chain structure
     if (exc > 1) {
-        for (int i = 0; i < exc-1; ++i) { // Compare intron coordinates
+        for (int64_t i = 0; i < exc-1; ++i) { // Compare intron coordinates
             if (a.exons[i]->end != b.exons[i]->end ||
 			    a.exons[i + 1]->start != b.exons[i + 1]->start) {
                 return false; // Intron chains do not match
             }
         }
-		if (abs((int)a.start - (int)b.start) > ME_range || abs((int)a.end - (int)b.end) > ME_range)
+		if (GABS(a.start - b.start) > ME_range || GABS(a.end - b.end) > ME_range)
 			return false; // Transcript ends are too far apart
         return true; // All intron chains match
     } else {
         // Calculate overlap for single-exon transcripts
-        int ov_start = GMAX(a.start, b.start);
-        int ov_end = GMIN(a.end, b.end);
-        int ovlen = ov_end - ov_start + 1;
+        int64_t ov_start = GMAX(a.start, b.start);
+        int64_t ov_end = GMIN(a.end, b.end);
+        int64_t ovlen = ov_end - ov_start + 1;
         //int shortest_span = GMIN(a.len(), b.len());
-		int longer_span = GMAX(a.len(), b.len());
-        if (static_cast<double>(ovlen) / longer_span >= SE_tolerance) {
+		int64_t longer_span = GMAX(a.len(), b.len());
+        if ((long double)ovlen / (long double)longer_span >= SE_tolerance) {
             return true; // Overlap meets or exceeds tolerance
         }
     }
     return false; // Default case: no match
 }
 
-char singleExonTMatch(GffObj &m, GffObj &r, int &ovlen, int trange, int *ovlrefstart, bool cdsMatch) {
+char singleExonTMatch(GffObj &m, GffObj &r, int64_t &ovlen, int64_t trange, int64_t *ovlrefstart, bool cdsMatch) {
 	// return '=' if boundaries match within tdelta distance,
 	//   or '~' if the overlap is >=80% of the longer sequence length
 	//  ':' and '_' respectively if CDS chains do not match but otherwise would be '=' or '~'
@@ -3364,17 +3364,17 @@ char singleExonTMatch(GffObj &m, GffObj &r, int &ovlen, int trange, int *ovlrefs
 	//   it's also considered "matching" if the overlap is at least 80% of
 	//   the reference len AND at least 70% of the query len
 	char result = 0;
-	if (abs((int)m.start - (int)r.start) <= trange && abs((int)m.end - (int)r.end) <= trange)
+	if (GABS(m.start - r.start) <= trange && GABS(m.end - r.end) <= trange)
 		result = '=';
 	else {
 	  if (m.covlen > r.covlen) {
-		  if ((ovlen >= m.covlen * 0.8) ||
-			  (ovlen >= r.covlen * 0.8 && ovlen >= m.covlen * 0.7))
+		  if ((ovlen * 10 >= m.covlen * 8) ||
+			  (ovlen * 10 >= r.covlen * 8 && ovlen * 10 >= m.covlen * 7))
 			  // allow also some fuzzy reverse containment
 			    result = '~';
 			  else return 0;
 	  } else {
-		  if (ovlen >= r.covlen * 0.8) result = '~';
+		  if (ovlen * 10 >= r.covlen * 8) result = '~';
 			 else return 0;
 	  }
 	}
@@ -3389,12 +3389,12 @@ char singleExonTMatch(GffObj &m, GffObj &r, int &ovlen, int trange, int *ovlrefs
 }
 
 //NOTE: getOvlData() does not check the strands of the transcripts
-TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool cdsMatch)
+TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int64_t trange, bool cdsMatch)
 {
 	TOvlData odta;
 	if (!m.overlap(r.start, r.end))
 		return odta;
-	int jmax = r.exons.Count() - 1;
+	int64_t jmax = r.exons.Count() - 1;
 	// char rcode=0;
 	if (m.exons.Count() == 1)
 	{ // single-exon transfrag
@@ -3410,13 +3410,13 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			// singleExonTMatch set odta.ovlen and odta.ovlRefstart anyway
 			if (m.covlen < r.covlen)
 			{
-				if (odta.ovlen >= m.covlen * 0.8)
+				if (odta.ovlen * 10 >= m.covlen * 8)
 				{
 					odta.ovlcode = 'c';
 					return odta;
 				}
 			} // fuzzy containment
-			else if (odta.ovlen >= r.covlen * 0.8)
+			else if (odta.ovlen * 10 >= r.covlen * 8)
 			{
 				odta.ovlcode = 'k';
 				return odta;
@@ -3431,15 +3431,15 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 		{
 			odta.ovlcode = 'm';
 			odta.ovlRefstart = ((r.exons[0]->start > m.start) ? 1 : m.start - r.exons[0]->start + 1);
-			int rovlend = (r.exons[jmax]->end < m.end) ? r.covlen : r.exons[jmax]->end - m.end + 1;
+			int64_t rovlend = (r.exons[jmax]->end < m.end) ? r.covlen : r.exons[jmax]->end - m.end + 1;
 			odta.ovlen = rovlend - odta.ovlRefstart + 1;
 			return odta;
 		}
-		int refxpos = 0;
-		for (int j = 0; j <= jmax; j++)
+		int64_t refxpos = 0;
+		for (int64_t j = 0; j <= jmax; j++)
 		{
-			int ovlst = 0; // check if it's ~contained by an exon
-			int exovlen = mseg.overlapLen(r.exons[j]->start, r.exons[j]->end, &ovlst);
+			int64_t ovlst = 0; // check if it's ~contained by an exon
+			int64_t exovlen = mseg.overlapLen(r.exons[j]->start, r.exons[j]->end, &ovlst);
 			if (exovlen > 0)
 			{
 				if (odta.ovlen == 0)
@@ -3484,18 +3484,18 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 		return odta;
 	} // single-exon transfrag
 	//-- multi-exon transfrag --
-	int imax = m.exons.Count() - 1; // imax>0 here
+	int64_t imax = m.exons.Count() - 1; // imax>0 here
 	odta.jbits.resize(imax << 1);	// num_junctions = 2 * num_introns
 	odta.inbits.resize(imax);		// num_introns
 	if (jmax == 0)
 	{ // single-exon reference overlap
 		// any exon overlap?
 		GSeg rseg(r.start, r.end);
-		for (int i = 0; i <= imax; i++)
+		for (int64_t i = 0; i <= imax; i++)
 		{
 			// check if it's ~contained by an exon
-			int rxpos = 0;
-			int exovlen = m.exons[i]->overlapLen(r.start, r.end, &rxpos);
+			int64_t rxpos = 0;
+			int64_t exovlen = m.exons[i]->overlapLen(r.start, r.end, &rxpos);
 			if (exovlen > 0)
 			{
 				if (odta.ovlRefstart == 0)
@@ -3561,8 +3561,8 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 		return odta;
 	}
 	// check intron chain overlap (match, containment, intron retention etc.)
-	int i = 1;					  // index of exon to the right of current qry intron
-	int j = 1;					  // index of exon to the right of current ref intron
+	int64_t i = 1;					  // index of exon to the right of current qry intron
+	int64_t j = 1;					  // index of exon to the right of current ref intron
 	bool intron_conflict = false; // overlapping introns have at least a mismatching splice site
 	// from here on we check all qry introns against ref introns
 	bool junct_match = false;	   // true if at least a junction match is found
@@ -3570,10 +3570,10 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 	bool intron_ovl = false;	   // if any intron overlap is found
 	bool intron_retention = false; // if any ref intron is covered by a qry exon
 	// intron chain (partial) match exon-index boundaries:
-	int imfirst = 0; // index of exon after first intron match in query (valid>0)
-	int jmfirst = 0; // index of exon after first intron match in reference (valid>0)
-	int imlast = 0;	 // index of exon after last intron match in query
-	int jmlast = 0;	 // index of  exon after last intron match in reference
+	int64_t imfirst = 0; // index of exon after first intron match in query (valid>0)
+	int64_t jmfirst = 0; // index of exon after first intron match in reference (valid>0)
+	int64_t imlast = 0;	 // index of exon after last intron match in query
+	int64_t jmlast = 0;	 // index of  exon after last intron match in reference
 	//--keep track of the last overlapping introns in both qry and ref:
 	odta.ovlen = m.exonOverlapLen(r, &odta.ovlRefstart);
 	// int q_first_iovl=-1, r_first_iovl=-1, q_last_iovl=-1, r_last_iovl=-1;
@@ -3658,14 +3658,14 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 	} // while checking intron overlaps
 	// --- when qry intron chain is contained within ref intron chain
 	//     qry terminal exons may poke (overhang) into ref's other introns
-	int l_iovh = 0; // overhang of q left boundary beyond the end of ref intron on the left
-	int r_iovh = 0; // same type of overhang through the ref intron on the right
-	int qry_intron_poking = 0;
+	int64_t l_iovh = 0; // overhang of q left boundary beyond the end of ref intron on the left
+	int64_t r_iovh = 0; // same type of overhang through the ref intron on the right
+	int64_t qry_intron_poking = 0;
 	// --- when ref intron chain is contained within qry intron chain,
 	//     terminal exons of ref may poke (overhang) into qry other introns
-	int l_jovh = 0; // overhang of q left boundary beyond the end of ref intron to the left
-	int r_jovh = 0; // same type of overhang through the ref intron on the right
-	int ref_intron_poking = 0;
+	int64_t l_jovh = 0; // overhang of q left boundary beyond the end of ref intron to the left
+	int64_t r_jovh = 0; // same type of overhang through the ref intron on the right
+	int64_t ref_intron_poking = 0;
 	if (ichain_match)
 	{ // intron (sub-)chain compatible so far (but there could still be conflicts)
 		if (imfirst == 1 && imlast == imax)
@@ -3674,8 +3674,8 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			{ // identical intron chains
 				if (stricterMatch)
 				{
-					odta.ovlcode = (abs((int)r.exons[0]->start - (int)m.exons[0]->start) <= trange &&
-									abs((int)r.exons.Last()->end - (int)m.exons.Last()->end) <= trange)
+					odta.ovlcode = (GABS(r.exons[0]->start - m.exons[0]->start) <= trange &&
+									GABS(r.exons.Last()->end - m.exons.Last()->end) <= trange)
 									   ? '='
 									   : '~';
 				}
@@ -3706,7 +3706,7 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			if (jmfirst > 1)
 			{
 				// find if m.start falls within any ref intron before jmfirst
-				for (int j = jmfirst - 1; j > 0; --j)
+				for (int64_t j = jmfirst - 1; j > 0; --j)
 					if (m.start < r.exons[j]->start)
 					{
 						if (m.start > r.exons[j - 1]->end)
@@ -3723,7 +3723,7 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			}
 			if (jmlast < jmax)
 			{
-				for (int j = jmlast; j < jmax; ++j)
+				for (int64_t j = jmlast; j < jmax; ++j)
 					if (m.end > r.exons[j]->end)
 					{
 						if (m.end < r.exons[j + 1]->start)
@@ -3751,7 +3751,7 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			// check for ref ends poking into qry introns
 			if (imfirst > 1)
 			{
-				for (int i = imfirst - 1; i > 0; --i)
+				for (int64_t i = imfirst - 1; i > 0; --i)
 					if (m.exons[i]->start > r.start)
 					{
 						if (r.start > m.exons[i - 1]->end)
@@ -3767,7 +3767,7 @@ TOvlData getOvlData(GffObj &m, GffObj &r, bool stricterMatch, int trange, bool c
 			}
 			if (imlast < imax)
 			{
-				for (int i = imlast; i < imax; ++i)
+				for (int64_t i = imlast; i < imax; ++i)
 					if (r.end > m.exons[i]->end)
 					{
 						if (r.end < m.exons[i + 1]->start)

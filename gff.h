@@ -67,8 +67,8 @@ byte classcode_rank(char c); //returns priority value for class codes
 
 struct TOvlData { //describe overlap with a ref transcript
 	char ovlcode=0;
-	int ovlen=0;
-	int ovlRefstart=0; //start coordinate of the overlap on reference (1-based)
+	int64_t ovlen=0;
+	int64_t ovlRefstart=0; //start coordinate of the overlap on reference (1-based)
 	int numJmatch=0; //number of matching splice sites (not introns!)
 	GBitVec jbits; //bit array with 1 bit for each junction (total = 2 * num_introns)
 	              //a junction match is 1, otherwise 0
@@ -79,7 +79,7 @@ struct TOvlData { //describe overlap with a ref transcript
 
 	//Note: skipped exons have 2 consecutive jbits set (starting at even index)
 	//      with NO corresponding bit set in inbits
-	TOvlData(char oc=0, int olen=0, int nmj=0):ovlcode(oc),
+	TOvlData(char oc=0, int64_t olen=0, int nmj=0):ovlcode(oc),
 			ovlen(olen),ovlRefstart(0),numJmatch(nmj) { }
 	TOvlData(const TOvlData& o):ovlcode(o.ovlcode), ovlen(o.ovlen),
 			ovlRefstart(o.ovlRefstart), numJmatch(o.numJmatch),
@@ -93,15 +93,15 @@ struct TOvlData { //describe overlap with a ref transcript
 	//TODO: need move operator?
 };
 
-TOvlData getOvlData(GffObj& m, GffObj& r, bool stricterMatch=false, int trange=0, bool cdsMatch=false);
+TOvlData getOvlData(GffObj& m, GffObj& r, bool stricterMatch=false, int64_t trange=0, bool cdsMatch=false);
 
-char transcriptMatch(GffObj& a, GffObj& b, int& ovlen, int trange=0, bool cdsMatch=false); //generic transcript match test
+char transcriptMatch(GffObj& a, GffObj& b, int64_t& ovlen, int64_t trange=0, bool cdsMatch=false); //generic transcript match test
 // -- return '=', '~'  or 0
-char singleExonTMatch(GffObj& m, GffObj& r, int& ovlen, int trange=0, int* ovlrefstart=0, bool cdsMatch=false);
+char singleExonTMatch(GffObj& m, GffObj& r, int64_t& ovlen, int64_t trange=0, int64_t* ovlrefstart=0, bool cdsMatch=false);
 //single-exon transcript match test - returning '=', '~'  or 0
 
 
-bool txStructureMatch(GffObj& a, GffObj& b, double SE_tolerance=0.8, int ME_range=10000);
+bool txStructureMatch(GffObj& a, GffObj& b, double SE_tolerance=0.8, int64_t ME_range=10000);
 // generic transcript match test: for MET: intron chain match only
 // for single-exon tx: overlap >=80% of the longer transcript (SE_tolerance)
 // for multi-exon tx: terminal exons can differ <=10000 bases (ME_range)
@@ -194,7 +194,7 @@ class GMapSegments:public GVec<GMapSeg> {
     	//returns 0 if mapping cannot be performed!
     	if (lc==0 || fCount==0 || lc<lreg.start || lc>lreg.end) return 0;
     	//find local segment containing this coord
-    	int i=0;
+    	int64_t i=0;
     	while (i<fCount) {
     		if (lc>=fArray[i].start && lc<=fArray[i].end)
     			return (fArray[i].gstart+dir*(lc-fArray[i].start));
@@ -205,9 +205,9 @@ class GMapSegments:public GVec<GMapSeg> {
     int64_t lmap(int64_t gc) { //takes a genome coordinate and returns its mapping to local coordinates
     	if (gc==0 || fCount==0 || gc<greg.start || gc>greg.end) return 0;
     	//find genomic segment containing this coord
-    	int i=0;
+    	int64_t i=0;
     	while (i<fCount) {
-    		int ofs=fArray[i].g_within(gc);
+    		int64_t ofs=fArray[i].g_within(gc);
     		if (ofs!=0)
     			return (fArray[i].start+ofs);
     		++i;
@@ -819,12 +819,12 @@ public:
   }
 
   //return the index of exon containing coordinate coord, or -1 if not
-  int whichExon(int64_t coord, GList<GffExon>* segs=NULL);
-  int readExon(GffReader& reader, GffLine& gl);
+  int64_t whichExon(int64_t coord, GList<GffExon>* segs=NULL);
+  int64_t readExon(GffReader& reader, GffLine& gl);
 
-  int addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override=exgffNone); //add to cdss or exons
+  int64_t addExon(GList<GffExon>& segs, GffLine& gl, int8_t exontype_override=exgffNone); //add to cdss or exons
 
-  int addExon(int64_t segstart, int64_t segend, int8_t exontype=exgffNone, char phase='.',
+  int64_t addExon(int64_t segstart, int64_t segend, int8_t exontype=exgffNone, char phase='.',
 		      GffScore exon_score=GFFSCORE_NONE, GList<GffExon>* segs=NULL);
 
 protected:
@@ -839,7 +839,7 @@ public:
   void removeExon(GffExon* p);
   char  strand; //'+', '-' or '.'
   GffScore gscore;
-  int covlen; //total coverage of reference genomic sequence (sum of maxcf segment lengths)
+  int64_t covlen; //total coverage of reference genomic sequence (sum of maxcf segment lengths)
   GffAttrs* attrs; //other gff3 attributes found for the main mRNA feature
    //constructor by gff line parsing:
   GffObj(GffReader& gfrd, BEDLine& bedline);
@@ -1018,15 +1018,15 @@ public:
      return false;
    }
 
-   int exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int* ovlen=NULL, int start_idx=0);
+   int64_t exonOverlapIdx(GList<GffExon>& segs, int64_t s, int64_t e, int64_t* ovlen=NULL, int64_t start_idx=0);
 
-   int exonOverlapLen(GffObj& r, int *rovlstart=NULL) {
+   int64_t exonOverlapLen(GffObj& r, int64_t *rovlstart=NULL) {
 	  if (rovlstart) *rovlstart=0;
       if (start>r.end || r.start>end) return 0;
-      int i=0;
-      int j=0;
-      int ovlen=0;
-      int rxpos=0;
+      int64_t i=0;
+      int64_t j=0;
+      int64_t ovlen=0;
+      int64_t rxpos=0;
       while (i<exons.Count() && j<r.exons.Count()) {
         int64_t istart=exons[i]->start;
         int64_t iend=exons[i]->end;
@@ -1130,10 +1130,10 @@ public:
        //print a BED-12 line + GFF3 attributes in 13th field
    void printSummary(FILE* fout=NULL);
 
-   char* getSpliced(GFaSeqGet* faseq, bool CDSonly=false, int* rlen=NULL,
+   char* getSpliced(GFaSeqGet* faseq, bool CDSonly=false, int64_t* rlen=NULL,
            int64_t* cds_start=NULL, int64_t* cds_end=NULL, GMapSegments* seglst=NULL,
 		   bool cds_open=false);
-    char* getUnspliced(GFaSeqGet* faseq, int* rlen, GMapSegments* seglst=NULL);
+    char* getUnspliced(GFaSeqGet* faseq, int64_t* rlen, GMapSegments* seglst=NULL);
 
     void addPadding(int padLeft, int padRight); //change exons to include this padding on the sides
     void removePadding(int padLeft, int padRight);
@@ -1444,13 +1444,13 @@ class GffReader {
 // -- auxiliary classes for GffObj::processGeneSegments() --
 class GSegMatch { //keep track of "matching" overlaps of a GeneCDSChain with multiple GeneSegment containers
   public:
-   int child_idx; //index of matching _gene_segment GffObj in gene->children[] list
-   int noncov; //number of "non-covered" bases in the GeneSegment
-   int gsegidx; //index of _gene_segment in GVec<int> geneSegs
+   int64_t child_idx; //index of matching _gene_segment GffObj in gene->children[] list
+   int64_t noncov; //number of "non-covered" bases in the GeneSegment
+   int64_t gsegidx; //index of _gene_segment in GVec<int> geneSegs
      // (i.e. UTRs + implied introns if exons are missing)
    bool operator<(GSegMatch& o) { return (noncov<o.noncov); }
    bool operator==(GSegMatch& o) { return (noncov==o.noncov); }
-   GSegMatch(int cidx=-1, int ncov=-1, int gsidx=-1):child_idx(cidx),
+   GSegMatch(int64_t cidx=-1, int64_t ncov=-1, int64_t gsidx=-1):child_idx(cidx),
     	   noncov(ncov), gsegidx(gsidx) { }
 };
 
@@ -1476,27 +1476,27 @@ class GeneCDSChain: public GSeg { //keep track of CDS chains of the gene and the
 	    cdsList.Add(cds);
 	    expandInclude(cstart, cend);
 	}
-	void addMatch(int childidx, int ncov, int gsegidx) {
+	void addMatch(int64_t childidx, int64_t ncov, int64_t gsegidx) {
 	    GSegMatch segmatch(childidx, ncov, gsegidx);
 	    mxs.Add(segmatch);
 	}
-	bool singleExonCDSMatch(int64_t tstart, int64_t tend, int& ncov) {
+	bool singleExonCDSMatch(int64_t tstart, int64_t tend, int64_t& ncov) {
 	    if (start>=tstart && end<=tend) {
 	    	ncov=start-tstart + tend-end;
 	    	//add all CDS-"introns"
 	    	if (cdsList.Count()>1)
 	    		//shouldn't really consider this a valid "match"
-	    		for (int i=1;i<cdsList.Count();i++)
+	    		for (int64_t i=1;i<cdsList.Count();i++)
 	    			ncov+=cdsList[i].start-cdsList[i-1].end-1;
 	    	return true;
 	    }
 	    return false;
 	}
-	bool singleCDStoExon(GffObj&t, int& ncov) {
+	bool singleCDStoExon(GffObj&t, int64_t& ncov) {
 	    //cdsList[0] must be contained in a single exon of t
-	    int nc=0;
+	    int64_t nc=0;
 	    bool match=false;
-	    for (int i=0;i<t.exons.Count();i++) {
+	    for (int64_t i=0;i<t.exons.Count();i++) {
 	    	if (t.exons[i]->overlap(cdsList[0])) {
 	    	   if (cdsList[0].start>=t.exons[i]->start &&
 	    			cdsList[0].end<=t.exons[i]->end) {
@@ -1513,13 +1513,13 @@ class GeneCDSChain: public GSeg { //keep track of CDS chains of the gene and the
 	    return true;
 	}
 
-	bool multiCDStoExon(GffObj &t, int& ncov) {
+	bool multiCDStoExon(GffObj &t, int64_t& ncov) {
 	    //multi-CDS vs multi-exon t
-	    int nc=0;
-	    int e=0, c=0;
-	    int emax=t.exons.Count()-1;
-	    int cmax=cdsList.Count()-1;
-	    int mintrons=0; //matched introns
+	    int64_t nc=0;
+	    int64_t e=0, c=0;
+	    int64_t emax=t.exons.Count()-1;
+	    int64_t cmax=cdsList.Count()-1;
+	    int64_t mintrons=0; //matched introns
 	    while (e<emax && c<cmax) {
 	    	if (mintrons>0 &&
 	    			(cdsList[c].end!=t.exons[e]->end ||
@@ -1552,13 +1552,13 @@ class GeneCDSChain: public GSeg { //keep track of CDS chains of the gene and the
 	    if (mintrons<cdsList.Count()-1) return false;
         //c should be cmax, e should be the last exon with CDS
 	    nc+=t.exons[e]->end-cdsList[c].end;
-	    for(int i=e+1;i<t.exons.Count();i++)
+	    for(int64_t i=e+1;i<t.exons.Count();i++)
 	    	nc+=t.exons[i]->len();
 	    ncov=nc;
 	    return true;
 	}
 
-	bool containedBy(GffObj& t, int& ncov) {
+	bool containedBy(GffObj& t, int64_t& ncov) {
 
 	    // (Warning: t may have no defined exons!)
 	    //if yes: ncov will be set to the number of non-CDS-covered bases in t

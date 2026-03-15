@@ -128,9 +128,9 @@ static int cmdFastaRanges(const char* fasta, const char* rangesf) {
    char* seq=faseq->copyRange(start, end, rev, false);
    if (seq==NULL)
      GError("Error: could not fetch range %s %" PRId64 "-%" PRId64 "\n", fields[1], start, end);
-   fprintf(stdout, "%s\t%s\t%" PRId64 "\t%" PRId64 "\t%c\t%d\t%s\n",
+   fprintf(stdout, "%s\t%s\t%" PRId64 "\t%" PRId64 "\t%c\t%zu\t%s\n",
            fields[0], fields[1], start, end,
-           rev ? '-' : '+', (int)strlen(seq), seq);
+           rev ? '-' : '+', strlen(seq), seq);
    GFREE(seq);
  }
  return 0;
@@ -171,23 +171,23 @@ static int cmdTranscriptSeq(const char* fname, const char* fasta) {
    GFaSeqGet* faseq=gfasta.fetch(gffrec->getGSeqName());
    if (faseq==NULL)
      GError("Error: could not fetch sequence %s from %s\n", gffrec->getGSeqName(), fasta);
-   int splen=0;
+   int64_t splen=0;
    char* spliced=gffrec->getSpliced(faseq, false, &splen);
    if (spliced==NULL)
      GError("Error: could not get spliced sequence for %s\n", gffrec->getID());
    char* cdsseq=NULL;
-   int cdslen=0;
+   int64_t cdslen=0;
    if (gffrec->hasCDS()) {
      cdsseq=gffrec->getSpliced(faseq, true, &cdslen);
      if (cdsseq==NULL)
        GError("Error: could not get CDS sequence for %s\n", gffrec->getID());
-     fprintf(stdout, "%s\t%s\t%c\t%" PRId64 "\t%d\t%s\t%d\t%s\n",
+     fprintf(stdout, "%s\t%s\t%c\t%" PRId64 "\t%" PRId64 "\t%s\t%" PRId64 "\t%s\n",
              nullStr(gffrec->getID()), nullStr(gffrec->getGSeqName()),
              gffrec->strand, gffrec->exons.Count(),
              splen, spliced, cdslen, cdsseq);
    }
    else {
-     fprintf(stdout, "%s\t%s\t%c\t%" PRId64 "\t%d\t%s\t.\t.\n",
+     fprintf(stdout, "%s\t%s\t%c\t%" PRId64 "\t%" PRId64 "\t%s\t.\t.\n",
              nullStr(gffrec->getID()), nullStr(gffrec->getGSeqName()),
              gffrec->strand, gffrec->exons.Count(),
              splen, spliced);

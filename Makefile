@@ -8,6 +8,11 @@ LIBS := -lz
 BASEFLAGS  := -Wall -Wextra -std=c++11 ${SEARCHDIRS} -D_FILE_OFFSET_BITS=64 \
  -D_LARGEFILE_SOURCE -D_REENTRANT -fno-strict-aliasing \
  -fno-exceptions -fno-rtti
+STRICT_CHECK_FLAGS := -Wconversion -Wsign-conversion
+
+ifdef STRICT_WARNINGS
+BASEFLAGS += $(STRICT_CHECK_FLAGS)
+endif
 
 GCCV8 := $(shell expr `${CXX} -dumpversion | cut -f1 -d.` \>= 8)
 ifeq "$(GCCV8)" "1"
@@ -47,7 +52,7 @@ RM = rm -f
 
 OBJS := GBase.o GArgs.o GFaSeqGet.o gdna.o codons.o gff.o GStr.o GFastaIndex.o
 
-.PHONY : all release debug memcheck memdebug test tests large-tests clean
+.PHONY : all release debug memcheck memdebug test tests large-tests strict-coords clean
 
 all release debug memcheck memdebug: gclib-test
 
@@ -59,6 +64,12 @@ test tests: gclib-test
 
 large-tests: gclib-test
 	@./run_large_tests.sh
+
+strict-coords:
+	@for src in GFaSeqGet.cpp GFastaIndex.cpp gff.cpp gclib-test.cpp; do \
+		echo "Checking $$src with $(STRICT_CHECK_FLAGS)"; \
+		${CXX} ${BASEFLAGS} $(STRICT_CHECK_FLAGS) -fsyntax-only $$src; \
+	done
 
 clean:
 	@${RM} gclib-test gclib-test.o $(OBJS)
