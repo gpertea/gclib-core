@@ -14,7 +14,12 @@ ifdef STRICT_WARNINGS
 BASEFLAGS += $(STRICT_CHECK_FLAGS)
 endif
 
-GCCV8 := $(shell expr `${CXX} -dumpversion | cut -f1 -d.` \>= 8)
+# Robust gcc version as MAJOR*100+MINOR, tolerant of -dumpversion returning only
+# the major version (gcc >= 7). Used for the feature/version gates below.
+GCCVER := $(shell ${CXX} -dumpfullversion 2>/dev/null || ${CXX} -dumpversion)
+GCCVERNUM := $(shell echo "$(GCCVER)" | awk -F. '{printf "%d%02d", $$1, $$2}')
+
+GCCV8 := $(shell expr $(GCCVERNUM) \>= 800)
 ifeq "$(GCCV8)" "1"
  BASEFLAGS += -Wno-class-memaccess
 endif
@@ -28,12 +33,12 @@ ifneq (,$(filter %release %static, $(MAKECMDGOALS)))
   CXXFLAGS := -O3 -DNDEBUG $(CXXFLAGS)
 else
   ifneq (,$(filter %memcheck %memdebug, $(MAKECMDGOALS)))
-     GCCVER49 := $(shell expr `${CXX} -dumpversion | cut -f1,2 -d.` \>= 4.9)
+     GCCVER49 := $(shell expr $(GCCVERNUM) \>= 409)
      ifeq "$(GCCVER49)" "0"
        $(error gcc version 4.9 or greater is required for this build target)
      endif
      CXXFLAGS += -fno-omit-frame-pointer -fsanitize=undefined -fsanitize=address
-     GCCVER5 := $(shell expr `${CXX} -dumpversion | cut -f1 -d.` \>= 5)
+     GCCVER5 := $(shell expr $(GCCVERNUM) \>= 500)
      ifeq "$(GCCVER5)" "1"
        CXXFLAGS += -fsanitize=bounds -fsanitize=float-divide-by-zero -fsanitize=vptr
        CXXFLAGS += -fsanitize=float-cast-overflow -fsanitize=object-size
