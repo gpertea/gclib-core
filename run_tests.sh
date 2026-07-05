@@ -11,7 +11,7 @@ if [[ ! -x $prog ]]; then
 fi
 
 mkdir -p tests/wrk || err_exit "cannot create tests/wrk"
-rm -f tests/wrk/genome.fa tests/wrk/genome.fa.fai tests/wrk/*.tsv
+rm -f tests/wrk/genome.fa tests/wrk/genome.fa.fai tests/wrk/genome.fa.gz* tests/wrk/*.tsv
 cp tests/data/genome.fa tests/wrk/genome.fa || err_exit "cannot copy genome.fa"
 
 run_test() {
@@ -32,6 +32,13 @@ run_test "fasta-index" tests/wrk/fasta_index.tsv tests/expected/fasta_index.tsv 
   fasta-index tests/wrk/genome.fa
 run_test "fasta-ranges" tests/wrk/fasta_ranges.tsv tests/expected/fasta_ranges.tsv \
   fasta-ranges tests/wrk/genome.fa tests/data/fasta_ranges.tsv
+
+# BGZF: compress the genome, then fetch the same ranges via random access over
+# the .gz (using the auto-written .gzi/.fai) — the extracted sequences must be
+# byte-identical to the plain-FASTA result.
+"$prog" bgzip tests/wrk/genome.fa tests/wrk/genome.fa.gz || err_exit "bgzip failed"
+run_test "fasta-ranges (bgzf)" tests/wrk/fasta_ranges_bgz.tsv tests/expected/fasta_ranges.tsv \
+  fasta-ranges tests/wrk/genome.fa.gz tests/data/fasta_ranges.tsv
 run_test "annotation.gff summary" tests/wrk/annotation_gff.summary.tsv \
   tests/expected/annotation_gff.summary.tsv gff-summary tests/data/annotation.gff
 run_test "annotation.gff.gz summary" tests/wrk/annotation_gff_gz.summary.tsv \

@@ -1,6 +1,7 @@
 #ifndef GFASEQGET_H
 #define GFASEQGET_H
 #include "GFastaIndex.h"
+#include "GBgzf.h"
 
 #define MAX_FASUBSEQ 0x20000000
 //max 512MB sequence data held in memory at a time
@@ -48,25 +49,31 @@ class GFaSeqGet {
   int64_t line_blen; //binary length of each line
                  // = line_len + number of EOL character(s)
   GSubSeq* lastsub;
+  GBgzf* bgz; //non-NULL when the FASTA is BGZF-compressed (random access via .gzi)
   void initialParse(off_t fofs=0, bool checkall=true);
   const char* loadsubseq(int64_t cstart, int64_t& clen);
   void finit(const char* fn, off_t fofs, bool validate);
+  bool openBgzf(const char* fn); //detect+open a BGZF FASTA and load its .gzi index
+  //stdio/BGZF read dispatch used by initialParse:
+  int rdGetc() { return bgz ? bgz->getc() : getc(fh); }
+  void rdUngetc(int c) { if (bgz) bgz->ungetc(c); else ungetc(c, fh); }
+  void rdSeek(off_t ofs) { if (bgz) bgz->useek((uint64_t)ofs); else fseeko(fh, ofs, SEEK_SET); }
  public:
   //GStr seqname; //current sequence name
   char* seqname;
   GFaSeqGet(): fname(NULL), fh(NULL), fseqstart(0), seq_len(0),
-		  line_len(0), line_blen(0), lastsub(NULL), seqname(NULL) {
+		  line_len(0), line_blen(0), lastsub(NULL), bgz(NULL), seqname(NULL) {
   }
 
   GFaSeqGet(const char* fn, off_t fofs, bool validate=false):fname(NULL), fh(NULL),
 		    fseqstart(0), seq_len(0), line_len(0), line_blen(0),
-			lastsub(NULL), seqname(NULL) {
+			lastsub(NULL), bgz(NULL), seqname(NULL) {
      finit(fn,fofs,validate);
   }
 
   GFaSeqGet(const char* fn, bool validate=false):fname(NULL), fh(NULL),
 		    fseqstart(0), seq_len(0), line_len(0), line_blen(0),
-			lastsub(NULL), seqname(NULL) {
+			lastsub(NULL), bgz(NULL), seqname(NULL) {
      finit(fn,0,validate);
   }
 
@@ -82,6 +89,7 @@ class GFaSeqGet {
     }
     GFREE(seqname);
     delete lastsub;
+    delete bgz;
   }
 
   const char* seq(int64_t cstart=1, int64_t clen=0) {
@@ -190,6 +198,11 @@ class GFastaDb {
                   }
                }
             } //tried to load index
+            if (!faIdx->hasIndex() && GBgzf::isBgzf(fastaPath))
+               GError("Error: BGZF-compressed FASTA '%s' requires a precomputed index.\n"
+                      "  Create '%s.fai' and '%s.gzi' first (e.g. `samtools faidx %s`,\n"
+                      "  `bgzip -r`, or `gclib-test bgzip`).\n",
+                      fastaPath, fastaPath, fastaPath, fastaPath);
             if (!faIdx->hasIndex()) { //no index file to be loaded, build the index
                  //if (forceIndexFile)
                  //   GMessage("No fasta index found for %s. Rebuilding, please wait..\n",fastaPath);

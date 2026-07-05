@@ -50,7 +50,7 @@ RM = rm -f
 %.o : %.cpp
 	${CXX} ${CXXFLAGS} -c $< -o $@
 
-OBJS := GBase.o GArgs.o GFaSeqGet.o gdna.o codons.o gff.o GStr.o GFastaIndex.o
+OBJS := GBase.o GArgs.o GFaSeqGet.o gdna.o codons.o gff.o GStr.o GFastaIndex.o GBgzf.o
 
 .PHONY : all release debug memcheck memdebug test tests large-tests strict-coords clean
 
@@ -66,7 +66,7 @@ large-tests: gclib-test
 	@./run_large_tests.sh
 
 strict-coords:
-	@for src in GFaSeqGet.cpp GFastaIndex.cpp gff.cpp gclib-test.cpp; do \
+	@for src in GFaSeqGet.cpp GFastaIndex.cpp GBgzf.cpp gff.cpp gclib-test.cpp; do \
 		echo "Checking $$src with $(STRICT_CHECK_FLAGS)"; \
 		${CXX} ${BASEFLAGS} $(STRICT_CHECK_FLAGS) -fsyntax-only $$src; \
 	done

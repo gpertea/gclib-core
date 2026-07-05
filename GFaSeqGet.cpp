@@ -27,19 +27,37 @@ void GSubSeq::setup(int64_t sstart, int64_t slen, int64_t sovl, int64_t qfrom, i
   sqlen=slen;
 }
 
+// detect a BGZF FASTA and open it for random access, loading the companion
+// .gzi block index (required to map uncompressed offsets to compressed ones).
+bool GFaSeqGet::openBgzf(const char* fn) {
+  if (!GBgzf::isBgzf(fn)) return false;
+  bgz=new GBgzf();
+  if (!bgz->openRead(fn)) { delete bgz; bgz=NULL; return false; }
+  char* gzi=Gstrdup(fn,4);
+  strcpy(gzi+strlen(fn), ".gzi");
+  bool ok=bgz->loadIndex(gzi);
+  if (!ok)
+     GError("Error (GFaSeqGet): BGZF FASTA '%s' requires a block index '%s'\n"
+            "  (create it with `bgzip -r`, `samtools faidx`, or `gclib-test bgzip`).\n",
+            fn, gzi);
+  GFREE(gzi);
+  return true;
+}
+
 void GFaSeqGet::finit(const char* fn, off_t fofs, bool validate) {
  fh=fopen(fn,"rb");
  if (fh==NULL) {
    GError("Error (GFaSeqGet) opening file '%s'\n",fn);
    }
  fname=Gstrdup(fn);
+ openBgzf(fn);
  initialParse(fofs, validate);
  lastsub=new GSubSeq();
 }
 
 GFaSeqGet::GFaSeqGet(const char* faname, int64_t seqlen, off_t fseqofs, int l_len, int l_blen):fname(NULL),
 		fh(NULL), fseqstart(0), seq_len(0), line_len(0),
-		line_blen(0), lastsub(NULL), seqname(NULL) {
+		line_blen(0), lastsub(NULL), bgz(NULL), seqname(NULL) {
 //for GFastaIndex use mostly -- the important difference is that
 //the file offset is to the sequence, not to the defline
   fh=fopen(faname,"rb");
@@ -47,6 +65,7 @@ GFaSeqGet::GFaSeqGet(const char* faname, int64_t seqlen, off_t fseqofs, int l_le
     GError("Error (GFaSeqGet) opening file '%s'\n",faname);
     }
   fname=Gstrdup(faname);
+  openBgzf(faname); //BGZF-aware random access when compressed
   line_len=l_len;
   line_blen=l_blen;
   seq_len=seqlen;
@@ -59,7 +78,7 @@ GFaSeqGet::GFaSeqGet(const char* faname, int64_t seqlen, off_t fseqofs, int l_le
 
 GFaSeqGet::GFaSeqGet(FILE* f, off_t fofs, bool validate):fname(NULL), fh(NULL),
 	    fseqstart(0), seq_len(0), line_len(0), line_blen(0),
-		lastsub(NULL), seqname(NULL) {
+		lastsub(NULL), bgz(NULL), seqname(NULL) {
   if (f==NULL) GError("Error (GFaSeqGet) : null file handle!\n");
   fh=f;
   initialParse(fofs, validate);
@@ -68,19 +87,19 @@ GFaSeqGet::GFaSeqGet(FILE* f, off_t fofs, bool validate):fname(NULL), fh(NULL),
 
 void GFaSeqGet::initialParse(off_t fofs, bool checkall) {
  static const char gfa_ERRPARSE[]="Error (GFaSeqGet): invalid FASTA file format.\n";
- if (fofs!=0) { fseeko(fh,fofs,SEEK_SET); } //e.g. for offsets provided by fasta indexing
+ if (fofs!=0) { rdSeek(fofs); } //e.g. for offsets provided by fasta indexing
  //read the first two lines to determine fasta parameters
  if (seqname) GFREE(seqname);
  GDynArray<char> fseqname(64);
  fseqname.DetachPtr(); //will not free the allocated memory
  fseqstart=fofs;
- int c=getc(fh);
+ int c=rdGetc();
  fseqstart++;
  if (c!='>') //fofs must be at the beginning of a FASTA record!
 	 GError("Error (GFaSeqGet): not a FASTA record?\n");
 
  bool getName=true;
- while ((c=getc(fh))!=EOF) {
+ while ((c=rdGetc())!=EOF) {
    fseqstart++;
    if (getName) {
 	   if (c<=32) getName=false;
@@ -94,7 +113,7 @@ void GFaSeqGet::initialParse(off_t fofs, bool checkall) {
  if (c==EOF) GError(gfa_ERRPARSE);
  line_len=0;
  int64_t lendlen=0;
- while ((c=getc(fh))!=EOF) {
+ while ((c=rdGetc())!=EOF) {
   if (c=='\n' || c=='\r') { //end of line encountered
      if (line_len>0) { //end of the first "sequence" line
         lendlen++;
@@ -108,10 +127,10 @@ void GFaSeqGet::initialParse(off_t fofs, bool checkall) {
   line_len++;
   }
  //we are at the end of first sequence line
- while ((c=getc(fh))!=EOF) {
+ while ((c=rdGetc())!=EOF) {
    if (c=='\n' || c=='\r') lendlen++;
       else {
-       ungetc(c,fh);
+       rdUngetc(c);
        break;
        }
    }
@@ -122,8 +141,8 @@ void GFaSeqGet::initialParse(off_t fofs, bool checkall) {
    int64_t llen=0; //last line length
    int64_t elen=0; //length of last line ending
    bool waseol=true;
-   while ((c=getc(fh))!=EOF) {
-     if (c=='>' && waseol) { ungetc(c,fh); break; }
+   while ((c=rdGetc())!=EOF) {
+     if (c=='>' && waseol) { rdUngetc(c); break; }
      if (c=='\n' ||  c=='\r') {
         // eol char
         elen++;
@@ -146,7 +165,7 @@ void GFaSeqGet::initialParse(off_t fofs, bool checkall) {
      llen++;
      } //while reading chars
    }// FASTA checking was requested
- fseeko(fh,fseqstart,SEEK_SET);
+ rdSeek(fseqstart);
 }
 
 const char* GFaSeqGet::subseq(int64_t cstart, int64_t& clen) {
@@ -288,11 +307,16 @@ const char* GFaSeqGet::loadsubseq(int64_t cstart, int64_t& clen) {
   off_t f_end= (c_end/line_len)*line_blen + c_end % line_len;
   int64_t bytes_toRead=f_end-f_start;
   f_start+=fseqstart; // file offset from the beginning of the file
-  fseeko(fh, f_start, SEEK_SET);
   int64_t actual_read=0;
   char* smem=NULL;
   GMALLOC(smem, (size_t)bytes_toRead);
-  actual_read=(int64_t)fread((void*)smem, 1, (size_t)bytes_toRead, fh);
+  if (bgz) { //BGZF-compressed: seek by uncompressed offset, read across blocks
+    bgz->useek((uint64_t)f_start);
+    actual_read=bgz->read((void*)smem, bytes_toRead);
+  } else {
+    fseeko(fh, f_start, SEEK_SET);
+    actual_read=(int64_t)fread((void*)smem, 1, (size_t)bytes_toRead, fh);
+  }
   if (actual_read==0) {
 	  //error reading any bytes from the file, or invalid request
 	  clen=0;

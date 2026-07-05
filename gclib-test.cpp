@@ -10,6 +10,7 @@
 #define USAGE "Usage:\n\
   gclib-test fasta-index <fasta>\n\
   gclib-test fasta-ranges <fasta> <ranges.tsv>\n\
+  gclib-test bgzip <in.fa|-> <out.fa.gz>\n\
   gclib-test gff-summary <annotation.gff|annotation.gtf>\n\
   gclib-test transcript-seq <annotation.gff|annotation.gtf> <fasta>\n\
 "
@@ -100,6 +101,88 @@ static int cmdFastaIndex(const char* fasta) {
  if (!loaded.hasIndex())
    GError("Error: could not reload FASTA index %s\n", fainame.chars());
  printFastaIndex(loaded);
+ return 0;
+}
+
+// write one .fai record line (5 columns: name, seqlen, uncompressed offset,
+// line bases, line bytes) — identical layout to a plain-FASTA .fai
+static void writeFaiRec(FILE* fai, const char* name, int64_t seqlen,
+                        uint64_t ofs, int llen, int lblen) {
+ fprintf(fai, "%s\t%" PRId64 "\t%" PRIu64 "\t%d\t%d\n",
+         name, seqlen, ofs, llen, lblen);
+}
+
+// Compress a FASTA (file or stdin) into a BGZF file <out>, emitting the sibling
+// <out>.gzi (block index) and <out>.fai (record index with UNCOMPRESSED offsets)
+// in a single streaming pass — no external bgzip/samtools required, and the huge
+// input is never materialized uncompressed on disk.
+static int cmdBgzip(const char* infa, const char* outgz) {
+ FILE* fi = (strcmp(infa, "-")==0) ? stdin : fopen(infa, "rb");
+ if (fi==NULL) GError("Error: cannot open input FASTA %s\n", infa);
+ GBgzf bg;
+ if (!bg.openWrite(outgz)) GError("Error: cannot create BGZF file %s\n", outgz);
+ GStr faiName(outgz); faiName+=".fai";
+ GStr gziName(outgz); gziName+=".gzi";
+ FILE* fai = fopen(faiName.chars(), "w");
+ if (fai==NULL) GError("Error: cannot create FASTA index %s\n", faiName.chars());
+
+ // streaming FASTA scanner (tracks UNCOMPRESSED byte offsets)
+ bool lineStart=true, curIsHeader=false, collectingName=false, haveRec=false;
+ bool firstSeqLine=false;
+ GStr curName;
+ int64_t curSeqlen=0;
+ uint64_t curSeqofs=0, uoff=0;
+ int curLlen=0, curLblen=0, curLineChars=0, curLineBytes=0;
+
+ const size_t CHUNK=1<<20;
+ char* buf=NULL; GMALLOC(buf, CHUNK);
+ size_t n=0;
+ while ((n=fread(buf, 1, CHUNK, fi))>0) {
+   bg.write(buf, (int64_t)n);
+   for (size_t i=0;i<n;i++) {
+     char c=buf[i];
+     if (lineStart) {
+       lineStart=false;
+       if (c=='>') {
+         if (haveRec)
+           writeFaiRec(fai, curName.chars(), curSeqlen, curSeqofs, curLlen, curLblen);
+         curIsHeader=true; collectingName=true; curName.clear();
+         curSeqlen=0; firstSeqLine=true; curLlen=0; curLblen=0;
+         haveRec=true;
+         uoff++;
+         continue; //consume the '>' (not part of the name)
+       }
+       curIsHeader=false; curLineChars=0; curLineBytes=0;
+     }
+     if (curIsHeader) {
+       if (collectingName) {
+         if (c=='\n'||c=='\r'||c==' '||c=='\t') collectingName=false;
+         else curName+=c;
+       }
+       if (c=='\n') { curSeqofs=uoff+1; lineStart=true; curIsHeader=false; }
+     } else {
+       if (c=='\n') {
+         curLineBytes++;
+         if (firstSeqLine) { curLlen=curLineChars; curLblen=curLineBytes; firstSeqLine=false; }
+         curSeqlen+=curLineChars;
+         lineStart=true;
+       } else if (c=='\r') {
+         curLineBytes++;
+       } else {
+         curLineChars++; curLineBytes++;
+       }
+     }
+     uoff++;
+   }
+ }
+ if (haveRec) //flush the last record
+   writeFaiRec(fai, curName.chars(), curSeqlen, curSeqofs, curLlen, curLblen);
+ GFREE(buf);
+ if (fi!=stdin) fclose(fi);
+ fclose(fai);
+ bg.dumpIndex(gziName.chars());
+ bg.close();
+ if (!haveRec) GError("Error: no FASTA records found in %s\n", infa);
  return 0;
 }
 
@@ -217,6 +300,13 @@ int main(int argc, char* argv[]) {
      return 1;
    }
    return cmdFastaRanges(argv[2], argv[3]);
+ }
+ if (strcmp(argv[1], "bgzip")==0) {
+   if (argc!=4) {
+     fprintf(stderr, "%s", USAGE);
+     return 1;
+   }
+   return cmdBgzip(argv[2], argv[3]);
  }
  if (strcmp(argv[1], "gff-summary")==0) {
    if (argc!=3) {
