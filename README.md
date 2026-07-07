@@ -121,3 +121,39 @@ especially for pointer containers like `GPVec` and `GList`.
 This repository is the canonical place for shared core changes. If a bug fix or
 API change affects code mirrored into downstream tools, it should be made here
 first and then propagated by submodule update.
+
+## Propagating changes to downstream tools
+
+`gffread` and `gffcompare` embed this repository as their `gclib/` submodule
+(pinned to a specific commit on `master`). After changing shared core code here,
+publish it and then advance each tool's submodule pointer.
+
+**Step 1 — commit and push the canonical core (in this repo):**
+
+```
+cd gclib-core
+git add -A
+git commit -m "Describe the shared-core change"
+git push origin master
+```
+
+**Step 2 — bump the submodule pointer in each downstream tool** (repeat for
+`gffread` and `gffcompare`):
+
+```
+cd ../gffread                                   # or ../gffcompare
+git submodule update --remote --checkout gclib  # fast-forward gclib/ to the new master
+git add gclib
+git commit -m "Bump gclib submodule to latest core (64-bit + MinGW-w64 fixes)"
+git push
+```
+
+`--remote` follows the `branch = master` set in the tool's `.gitmodules`, so it
+pulls the commit you just pushed in Step 1.
+
+> Note: if you edited the core files *in place* inside a tool's `gclib/`
+> checkout (instead of in this standalone repo), that working tree will have
+> uncommitted local changes and `git submodule update` will refuse to overwrite
+> them. Reconcile first by discarding the local copies once the same content is
+> committed here — `git -C gclib checkout -- .` — then run Step 2. The rule is:
+> edit shared core *here*, never keep divergent edited copies in the tools.

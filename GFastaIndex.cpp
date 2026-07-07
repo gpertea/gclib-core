@@ -47,13 +47,8 @@ int64_t GFastaIndex::loadIndex(const char* finame) { //load record info from exi
       p++;
       int64_t len=0;
       int line_len=0, line_blen=0;
-#ifdef _WIN32
-         long offset=-1;
-         sscanf(p, "%" SCNd64 "%ld%d%d", &len, &offset, &line_len, &line_blen);
-#else
-         long long offset=-1;
+         long long offset=-1; //off_t is int64_t on all targets (incl. MinGW-w64)
          sscanf(p, "%" SCNd64 "%lld%d%d", &len, &offset, &line_len, &line_blen);
-#endif
       if (len==0 || line_len==0 || line_blen==0 || line_blen<line_len)
           GError(ERR_FAIDXLINE,p);
       addRecord(s,len,offset,line_len, line_blen);
@@ -166,15 +161,9 @@ int64_t GFastaIndex::storeIndex(FILE* fai) {
   }
   //reclist has records sorted by file offset
   for (int64_t i=0;i<reclist.Count();i++) {
-#ifdef _WIN32
-    int written=fprintf(fai, "%s\t%" PRId64 "\t%ld\t%d\t%d\n",
-            reclist[i]->seqname,reclist[i]->seqlen,(long)reclist[i]->fpos,
-              reclist[i]->line_len, reclist[i]->line_blen);
-#else
     int written=fprintf(fai, "%s\t%" PRId64 "\t%lld\t%d\t%d\n",
             reclist[i]->seqname, reclist[i]->seqlen, (long long)(reclist[i]->fpos),
               reclist[i]->line_len, reclist[i]->line_blen);
-#endif
     if (written>0) rcount++;
        else break; //couldn't write anymore
     }

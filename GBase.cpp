@@ -75,7 +75,7 @@ void GMessage(const char* format,...){
   }
 
 
-char* Gstrdup(const char* str, int xtracap) {
+char* Gstrdup(const char* str, int64_t xtracap) {
   if (str==NULL) return NULL;
   char *copy=NULL;
   GMALLOC(copy, strlen(str)+1+xtracap);
@@ -383,7 +383,7 @@ void GRangeParser::parse(char* s) {
 		 do { pend++; } while (isdigit(*pend));
 		 c=*pend;
 		 *pend=0;
-		 this->start=atoi(p);
+		 this->start=strtoll(p, NULL, 10);
 		 p=pend;
 		 *p=c;
 	   }
@@ -393,7 +393,7 @@ void GRangeParser::parse(char* s) {
 	   if (pend>p) { //parse the 2nd coordinate
 		   c=*pend;
 		   *pend=0;
-		   this->end=atoi(p);
+		   this->end=strtoll(p, NULL, 10);
 		   *pend=c;
 	   }
 	   if (start && end && end<start) Gswap(this->start, this->end);
@@ -451,12 +451,12 @@ int Gstricmp(const char* a, const char* b, int n) {
       else return strcasecmp(a,b);
 }
 
-int strsplit(char* str, GDynArray<char*>& fields, const char* delim, int maxfields) {
+int64_t strsplit(char* str, GDynArray<char*>& fields, const char* delim, int64_t maxfields) {
  //splits by placing 0 where any of the delim chars are found, setting fields[] to the beginning
  //of each field (stopping after maxfields); returns number of fields parsed
- int tidx=0;
+ int64_t tidx=0;
  bool afterdelim=true;
- int i=0;
+ int64_t i=0;
  fields.Reset();
  while (str[i]!=0 && tidx<maxfields) {
     if (afterdelim) {
@@ -476,12 +476,12 @@ int strsplit(char* str, GDynArray<char*>& fields, const char* delim, int maxfiel
  return tidx;
 }
 
-int strsplit(char* str, GDynArray<char*>& fields, const char delim, int maxfields) {
+int64_t strsplit(char* str, GDynArray<char*>& fields, const char delim, int64_t maxfields) {
   //splits by placing 0 where delim is found, setting fields[] to the beginning
   //of each field (stopping after maxfields); returns number of fields parsed
-  int tidx=0;
+  int64_t tidx=0;
   bool afterdelim=true;
-  int i=0;
+  int64_t i=0;
   fields.Reset();
   while (str[i]!=0 && tidx<maxfields) {
      if (afterdelim) {
@@ -501,12 +501,12 @@ int strsplit(char* str, GDynArray<char*>& fields, const char delim, int maxfield
   return tidx;
 }
 
-int strsplit(char* str,  GDynArray<char*>& fields, int maxfields) {
+int64_t strsplit(char* str,  GDynArray<char*>& fields, int64_t maxfields) {
   //splits by placing 0 where delim is found, setting fields[] to the beginning
   //of each field (stopping after maxfields); returns number of fields parsed
-  int tidx=0;
+  int64_t tidx=0;
   bool afterdelim=true;
-  int i=0;
+  int64_t i=0;
   fields.Reset();
   while (str[i]!=0 && tidx<maxfields) {
      if (afterdelim) {
@@ -806,10 +806,10 @@ bool trimiSuffix(char* s, const char* suffix) {
 }
 
 
-char* reverseChars(char* str, int slen) {
+char* reverseChars(char* str, int64_t slen) {
   if (slen==0) slen=strlen(str);
-  int l=0;
-  int r=slen-1;
+  int64_t l=0;
+  int64_t r=slen-1;
   char c;
   while (l<r) {
      c=str[l];str[l]=str[r];
@@ -977,7 +977,7 @@ bool parseFloat(char* &p, float& v) {
  return parsed;
 }
 
-bool parseInt(char* &p, int& i) { //pointer p is advanced after the number
+bool parseInt(char* &p, int64_t& i) { //pointer p is advanced after the number
  while (*p==' ' || *p=='\t') p++;
  char* start=p;
  char* p0=p;
@@ -991,8 +991,8 @@ bool parseInt(char* &p, int& i) { //pointer p is advanced after the number
 	 return false;
  }
  char* endptr=NULL;
- long l=strtol(start,&endptr,10);
- i=(int)l;
+ long long l=strtoll(start,&endptr,10);
+ i=l;
  if (endptr!=p || endptr==start || i!=l) {
 	 p=p0;
 	 return false;
@@ -1000,7 +1000,7 @@ bool parseInt(char* &p, int& i) { //pointer p is advanced after the number
  return true;
 }
 
-bool strToInt(char* p, int& i) {
+bool strToInt(char* p, int64_t& i) {
 	 while (*p==' ' || *p=='\t') p++;
 	 char* start=p;
 	 if (*p=='-') p++;
@@ -1011,8 +1011,8 @@ bool strToInt(char* p, int& i) {
 	 if (atdigits==p) //no digits found!
 		 return false;
 	 char* endptr=NULL;
-	 long l=strtol(start,&endptr,10);
-	 i=(int)l;
+	 long long l=strtoll(start,&endptr,10);
+	 i=l;
 	 if (endptr!=p || endptr==start || i!=l)
 		 return false;
 	 return true;

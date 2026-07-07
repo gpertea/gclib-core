@@ -314,7 +314,7 @@ BEDLine::BEDLine(GffReader* reader, const char* l): skip(true), dupline(NULL), l
   ID=t[3];
   //now parse the exons, if any
   if (tidx>11) {
-	  int numexons=0;
+	  int64_t numexons=0;
 	  p=t[9];
 	  if (!parseInt(p, numexons) || numexons<=0) {
 	      GMessage("Warning: invalid BED block count at line:\n%s\n",l);
@@ -349,24 +349,24 @@ BEDLine::BEDLine(GffReader* reader, const char* l): skip(true), dupline(NULL), l
 	  }
 	  GSeg ex;
 	  for (i=0;i<numexons;++i) {
-		  int exonlen;
+		  int64_t exonlen;
 		  if (!strToInt(blen[i], exonlen) || exonlen<=0) {
 		      GMessage("Warning: invalid BED block size %s at line:\n%s\n",blen[i], l);
 		      return;
 		  }
-		  int exonstart;
+		  int64_t exonstart;
 		  if (!strToInt(bstart[i], exonstart) || exonstart<0) {
 		      GMessage("Warning: invalid BED block start %s at line:\n%s\n",bstart[i], l);
 		      return;
 		  }
 		  if (i==0 && exonstart!=0) {
-			  GMessage("Warning: first BED block start is %d>0 at line:\n%s\n",exonstart, l);
+			  GMessage("Warning: first BED block start is %" PRId64 ">0 at line:\n%s\n",exonstart, l);
 			  return;
 		  }
 		  exonstart+=fstart;
 		  int64_t exonend=exonstart+exonlen-1;
 		  if ((int64_t)exonstart>fend || exonend>fend) {
-			  GMessage("Warning: BED exon %d-%d is outside record boundary at line:\n%s\n",exonstart,exonend, l);
+			  GMessage("Warning: BED exon %" PRId64 "-%" PRId64 " is outside record boundary at line:\n%s\n",exonstart,exonend, l);
 			  return;
 		  }
 		  ex.start=exonstart;ex.end=exonend;
@@ -389,7 +389,7 @@ BEDLine::BEDLine(GffReader* reader, const char* l): skip(true), dupline(NULL), l
 		if (strToUInt(cdstr, cds_start) && cds_start>=fstart-1) {
 			++cds_start;
 			if (!strToUInt(p, cds_end) || cds_end>fend) {
-				GMessage("Warning: invalid CDS (%d-%d) discarded for line:\n%s\n",
+				GMessage("Warning: invalid CDS (%" PRId64 "-%" PRId64 ") discarded for line:\n%s\n",
 						    cds_start, cds_end, dupline);
 				cds_start=0;
 				cds_end=0; //invalid CDS coordinates
@@ -429,12 +429,12 @@ bool GffLine::parseSegmentList(GVec<GSeg>& segs, char* str) {
 				break;
 			}
 			*p='\0'; ++p;
-			int xstart=0, xend=0;
-			if (!strToInt(ss[i], xstart) || xstart<(int)fstart || xstart>(int)fend){
+			int64_t xstart=0, xend=0;
+			if (!strToInt(ss[i], xstart) || xstart<fstart || xstart>fend){
 				segs_valid=false;
 				break;
 			}
-			if (!strToInt(p, xend) || xend<(int)fstart || xend>(int)fend) {
+			if (!strToInt(p, xend) || xend<fstart || xend>fend) {
 				segs_valid=false;
 				break;
 			}
@@ -690,8 +690,8 @@ GffLine::GffLine(GffReader* reader, const char* l): _parents(NULL), _parents_len
 			 exons_valid=parseSegmentList(exons, segstr);
 			 char* exoncountstr=extractAttr("exonCount=");
 			 if (exoncountstr) {
-				 int exoncount=0;
-				 if (!strToInt(exoncountstr, exoncount) || exoncount!=(int)exons.Count())
+				 int64_t exoncount=0;
+				 if (!strToInt(exoncountstr, exoncount) || exoncount!=exons.Count())
 					 GMessage("Warning: exonCount attribute value doesn't match the exons attribute!\n");
 				 GFREE(exoncountstr);
 			 }
@@ -710,8 +710,8 @@ GffLine::GffLine(GffReader* reader, const char* l): _parents(NULL), _parents_len
 							 validCDS=false;
 						 }
 					 }
-					 if (!validCDS || (int)cds_start<=0 || (int)cds_end<=0) {
-						 GMessage("Warning: invalid CDS (%d-%d) discarded for line:\n%s\n",
+					 if (!validCDS || cds_start<=0 || cds_end<=0) {
+						 GMessage("Warning: invalid CDS (%" PRId64 "-%" PRId64 ") discarded for line:\n%s\n",
 								 cds_start, cds_end, dupline);
 						 cds_start=0;
 						 cds_end=0;
@@ -1226,7 +1226,7 @@ GffObj::GffObj(GffReader& gfrd, BEDLine& bedline):GSeg(0,0),
 	for (int i=0;i<bedline.exons.Count();++i) {
 		int64_t eidx=this->addExon(bedline.exons[i].start, bedline.exons[i].end, exgffExon);
 	    if (eidx<0 && gfrd.showWarnings())
-	       GMessage("Warning: failed adding segment %d-%d for %s (discarded)!\n",
+	       GMessage("Warning: failed adding segment %" PRId64 "-%" PRId64 " for %s (discarded)!\n",
 	    		   bedline.exons[i].start, bedline.exons[i].end, gffID);
 
 	}
@@ -1331,7 +1331,7 @@ GffObj::GffObj(GffReader &gfrd, GffLine& gffline):
 				for (int i=0;i<gffline.exons.Count();++i) {
 					int64_t eidx=this->addExon(gffline.exons[i].start, gffline.exons[i].end, exgffExon, '.', gscore);
 				    if (eidx<0 && gfrd.showWarnings())
-				       GMessage("Warning: failed adding exon %d-%d for %s (discarded)!\n",
+				       GMessage("Warning: failed adding exon %" PRId64 "-%" PRId64 " for %s (discarded)!\n",
 				    		   gffline.exons[i].start, gffline.exons[i].end, gffID);
 
 				}
@@ -1347,7 +1347,7 @@ GffObj::GffObj(GffReader &gfrd, GffLine& gffline):
 				for (int i=0;i<gffline.cdss.Count();++i) {
 					int64_t eidx=this->addExon(gffline.cdss[i].start, gffline.cdss[i].end, exgffCDS, 0, GFFSCORE_NONE, cdss);
 				    if (eidx<0 && gfrd.showWarnings())
-				       GMessage("Warning: failed adding CDS segment %d-%d for %s (discarded)!\n",
+				       GMessage("Warning: failed adding CDS segment %" PRId64 "-%" PRId64 " for %s (discarded)!\n",
 				    		   gffline.cdss[i].start, gffline.cdss[i].end, gffID);
 
 				}
@@ -1609,7 +1609,7 @@ bool GffReader::readExonFeature(GffObj* prevgfo, GffLine* gffline, GHash<CNonExo
 			prevgfo->strand=gffline->strand;
 		}
 		else {
-			GMessage("Error at %s (%c): exon %d-%d (%c) found on different strand; discarded.\n",
+			GMessage("Error at %s (%c): exon %" PRId64 "-%" PRId64 " (%c) found on different strand; discarded.\n",
 					prevgfo->gffID, prevgfo->strand, gffline->fstart, gffline->fend, gffline->strand,
 					prevgfo->getGSeqName());
 			return true;
@@ -1766,7 +1766,7 @@ void GffReader::readAll() {
 				//create a separate entry (true discontinuous feature?)
 				prevseen=newGffRec(bedline, prevgflst);
 				if (gff_warns) {
-					GMessage("Warning: duplicate BED feature ID %s (%d-%d) (discontinuous feature?)\n",
+					GMessage("Warning: duplicate BED feature ID %s (%" PRId64 "-%" PRId64 ") (discontinuous feature?)\n",
 							bedline->ID, bedline->fstart, bedline->fend);
 				}
 			}
@@ -1804,7 +1804,7 @@ void GffReader::readAll() {
 						if (prevseen->overlap(gffline->fstart, gffline->fend) && !gtf_gene_dupID) {
 							//in some GTFs a gene ID may actually be the same with the parented transcript ID (thanks)
 							//overlapping feature with same ID is going too far
-							GMessage("Error: discarding overlapping duplicate %s feature (%d-%d) with ID=%s\n", gffline->ftype,
+							GMessage("Error: discarding overlapping duplicate %s feature (%" PRId64 "-%" PRId64 ") with ID=%s\n", gffline->ftype,
 									gffline->fstart, gffline->fend, gffline->ID);
 							//validation_errors = true;
 							if (gff_warns) { //validation intent: just skip the feature, allow the user to see other errors
@@ -1822,7 +1822,7 @@ void GffReader::readAll() {
 							//create a separate entry (true discontinuous feature)
 							prevseen=newGffRec(gffline, prevseen->parent, NULL, prevgflst);
 							if (gff_warns) {
-								GMessage("Warning: duplicate feature ID %s (%d-%d) (discontinuous feature?)\n",
+								GMessage("Warning: duplicate feature ID %s (%" PRId64 "-%" PRId64 ") (discontinuous feature?)\n",
 										gffline->ID, gffline->fstart, gffline->fend);
 							}
 						}
@@ -2140,7 +2140,7 @@ bool GffObj::processGeneSegments(GffReader* gfr) {
         }
         //-- assess the collected matches for this CDS chain:
         if (gc.mxs.Count()==0) {
-    		GMessage("Warning: could not find the corresponding gene segment for CDS chain %d-%d of gene %s\n",
+    		GMessage("Warning: could not find the corresponding gene segment for CDS chain %" PRId64 "-%" PRId64 " of gene %s\n",
     		    				gc.start, gc.end, gffID);
         	continue;
         }
@@ -2231,7 +2231,7 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 		//so make sure we add all CDS segments to exons, if they are not already there
 		for (int i=0;i<cdss->Count();++i) {
 			int64_t eidx=addExon((*cdss)[i]->start, (*cdss)[i]->end, exgffExon, 0, (*cdss)[i]->score);
-			if (eidx<0) GError("Error: could not reconcile CDS %d-%d with exons of transcript %s\n",
+			if (eidx<0) GError("Error: could not reconcile CDS %" PRId64 "-%" PRId64 " with exons of transcript %s\n",
 					(*cdss)[i]->start, (*cdss)[i]->end, gffID);
 		}
 	}
@@ -2336,7 +2336,7 @@ GffObj* GffObj::finalize(GffReader* gfr) {
 				if (start_eidx>=0 && end_eidx>=0) break;
 			}
 			cds_exComp=(start_eidx==end_eidx && start_eidx>=0);
-			if (!cds_exComp) GMessage("Warning: transcript %s has incorrect CDS segment definition (%d-%d)!\n",
+			if (!cds_exComp) GMessage("Warning: transcript %s has incorrect CDS segment definition (%" PRId64 "-%" PRId64 ")!\n",
 					gffID, CDstart, CDend);
 			cds_exComp=true; //just to free cdss, even though it's wrong
 		} else {
@@ -2475,7 +2475,7 @@ void GffObj::printBED(FILE* fout, bool cvtChars) {
  }
  //now add the GFF3 attributes for in the 13th field
  int numattrs=0;
- if (CDstart>0) BED_addAttribute(fout, numattrs,"CDS=%d:%d",CDstart-1, CDend);
+ if (CDstart>0) BED_addAttribute(fout, numattrs,"CDS=%" PRId64 ":%" PRId64 "",CDstart-1, CDend);
  if (CDphase>0) BED_addAttribute(fout, numattrs,"CDSphase=%c", CDphase);
  if (geneID!=NULL)
 	 BED_addAttribute(fout, numattrs, "geneID=%s",geneID);

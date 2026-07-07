@@ -75,15 +75,15 @@ char Codon::translate() {
 
 //simple 1st frame forward translation of a given DNA string
 // allocate and returns the translation string
-char* translateDNA(const char* dnastr, int& aalen, int dnalen) {
+char* translateDNA(const char* dnastr, int64_t& aalen, int64_t dnalen) {
  if (dnastr==NULL || *dnastr==0) return NULL;
  if (dnalen==0) dnalen=strlen(dnastr);
  aalen=dnalen/3;
  char* r=NULL;
  GMALLOC(r, aalen+1);
  r[aalen]=0;
- int ai=0;
- for (int i=0;i+2<dnalen;i+=3,ai++) {
+ int64_t ai=0;
+ for (int64_t i=0;i+2<dnalen;i+=3,ai++) {
    r[ai]=codonTable[packCodon(toupper(dnastr[i]),toupper(dnastr[i+1]),toupper(dnastr[i+2]))];
    }
  return r;

@@ -29,22 +29,16 @@
   #ifndef popen
    #define popen _popen
   #endif
-  /*
+  // MinGW-w64 is LLP64: `long` (and plain fseek/ftell) are only 32-bit, so map
+  // the POSIX 64-bit positioning calls to the MSVCRT 64-bit variants, which
+  // MinGW-w64 always provides. (Do NOT fall back to fseek/ftell here - that
+  // silently truncates file offsets past 2 GB.)
   #ifndef fseeko
-		#ifdef _fseeki64
-			#define fseeko(stream, offset, origin) _fseeki64(stream, offset, origin)
-		#else
-			#define fseeko fseek
-		#endif
+   #define fseeko(stream, offset, origin) _fseeki64(stream, offset, origin)
   #endif
   #ifndef ftello
-    #ifdef _ftelli64
-      #define ftello(stream) _ftelli64(stream)
-    #else
-      #define ftello ftell
-    #endif
- #endif
- */
+   #define ftello(stream) _ftelli64(stream)
+  #endif
  #else
   #define CHPATHSEP '/'
   #ifdef __CYGWIN__
@@ -297,7 +291,7 @@ template<class T> T* GDupAlloc(T& data) {
 }
 
 // ****************** basic string manipulation *************************
-char *Gstrdup(const char* str, int xtracap=0); //string duplication with extra capacity added
+char *Gstrdup(const char* str, int64_t xtracap=0); //string duplication with extra capacity added
 //duplicate a string by allocating a copy for it (+xtracap heap room) and returning the new pointer
 //caller is responsible for deallocating the returned pointer!
 
@@ -338,7 +332,7 @@ char* strchrs(const char* s, const char* chrs);
 char* rstrfind(const char* str, const char *substr);
 // like rindex() but for strings;  right side version of strstr()
 
-char* reverseChars(char* str, int slen=0); //in place reversal of string
+char* reverseChars(char* str, int64_t slen=0); //in place reversal of string
 
 char* rstrstr(const char* rstart, const char *lend, const char* substr);
 /*the reversed, rightside equivalent of strstr: starts searching
@@ -509,7 +503,7 @@ template<class OBJ> class GDynArray {
     int64_t fCapacity; // size of allocated memory
 	const static int64_t dyn_array_defcap = 16; // initial capacity (in elements)
  public:
-    GDynArray(int initcap=dyn_array_defcap):byptr(false), fArray(NULL), fCount(0),
+    GDynArray(int64_t initcap=dyn_array_defcap):byptr(false), fArray(NULL), fCount(0),
 	     fCapacity(initcap) { // constructor
     	  GMALLOC(fArray, fCapacity*sizeof(OBJ));
     }
@@ -599,7 +593,7 @@ template<class OBJ> class GDynArray {
     	fCount+=arr.fCount;
     }
 
-    void Trim(int tcount=1) {
+    void Trim(int64_t tcount=1) {
     	//simply cut (discard) the last tcount items
     	//new Count is now fCount-tcount
     	//does NOT shrink capacity accordingly!
@@ -654,15 +648,15 @@ template<class OBJ> class GDynArray {
 };
 
 
-int strsplit(char* str, GDynArray<char*>& fields, const char* delim, int maxfields=MAX_INT);
+int64_t strsplit(char* str, GDynArray<char*>& fields, const char* delim, int64_t maxfields=MAX_INT);
 //splits a string by placing 0 where any of the delim chars are found, setting fields[] to the beginning
 //of each field (stopping after maxfields); returns number of fields parsed
 
-int strsplit(char* str, GDynArray<char*>& fields, const char delim, int maxfields=MAX_INT);
+int64_t strsplit(char* str, GDynArray<char*>& fields, const char delim, int64_t maxfields=MAX_INT);
 //splits a string by placing 0 where the delim char is found, setting fields[] to the beginning
 //of each field (stopping after maxfields); returns number of fields parsed
 
-int strsplit(char* str, GDynArray<char*>& fields, int maxfields=MAX_INT); //splits by tab or space
+int64_t strsplit(char* str, GDynArray<char*>& fields, int64_t maxfields=MAX_INT); //splits by tab or space
 //splits a string by placing 0 where tab or space is found, setting fields[] to the beginning
 //of each field (stopping after maxfields); returns number of fields parsed
 
@@ -753,9 +747,9 @@ bool parseNumber(char* &p, double& v);
 bool parseDouble(char* &p, double& v); //just an alias for parseNumber
 bool parseFloat(char* &p, float& v);
 
-bool strToInt(char* p, int& i);
+bool strToInt(char* p, int64_t& i);
 bool strToUInt(char* p, int64_t& i);
-bool parseInt(char* &p, int& i); //advance pointer p after the number
+bool parseInt(char* &p, int64_t& i); //advance pointer p after the number
 bool parseUInt(char* &p, int64_t& i); //advance pointer p after the number
 bool parseHex(char* &p,  int64_t& i);
 

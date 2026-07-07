@@ -46,7 +46,7 @@ struct Codon {
 //simple 1st frame forward translation of a given DNA string
 //will allocated memory for the translation --  the caller is
 // responsible for freeing the returned string!
-char* translateDNA(const char* dnastr, int& aalen, int dnalen=0);
+char* translateDNA(const char* dnastr, int64_t& aalen, int64_t dnalen=0);
 
 char translateCodon(const char* dna); //returns the aminoacid code for the 1st codon at dna
 

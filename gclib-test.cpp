@@ -75,15 +75,9 @@ static void printFastaIndex(GFastaIndex& faidx) {
    reclist.Add(rec);
  }
  for (int i=0;i<reclist.Count();++i) {
-#ifdef _WIN32
-   fprintf(stdout, "%s\t%" PRId64 "\t%ld\t%d\t%d\n", reclist[i]->seqname,
-           reclist[i]->seqlen, (long)reclist[i]->fpos,
-           reclist[i]->line_len, reclist[i]->line_blen);
-#else
    fprintf(stdout, "%s\t%" PRId64 "\t%lld\t%d\t%d\n", reclist[i]->seqname,
            reclist[i]->seqlen, (long long)reclist[i]->fpos,
            reclist[i]->line_len, reclist[i]->line_blen);
-#endif
  }
 }
 

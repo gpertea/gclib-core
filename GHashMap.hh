@@ -116,11 +116,11 @@ public:
 		return (this->get(ky)!=this->end());
 	}
 
-	int Find(K ky) {//return internal slot location if found,
+	int64_t Find(K ky) {//return internal slot location if found,
 	                // or -1 if not found
 	  khInt_t r=this->get(ky);
   	  if (r==this->end()) return -1;
-  	  return (int)r;
+  	  return (int64_t)r;
 	}
 
 	void startIterate() { //iterator-like initialization
@@ -130,7 +130,7 @@ public:
 	K* Next() {
 		//returns a pointer to next valid key in the table (NULL if no more)
 		if (this->count==0) return NULL;
-		uint32_t nb=this->n_buckets();
+		khInt_t nb=this->n_buckets();
 		while (i_iter<nb && !this->_used(i_iter)) i_iter++;
 		if (i_iter==nb) return NULL;
 		K* k=&(this->key(i_iter-1));
@@ -138,7 +138,7 @@ public:
 		return k;
 	}
 
-	inline uint32_t Count() { return this->count; }
+	inline int64_t Count() { return this->count; }
 
 };
 
@@ -149,7 +149,7 @@ template <class Hash=GHashKey_wyHash<const char*>, class Eq=GHashKey_Eq<const ch
   protected:
 	const char* lastKey=NULL;
   public:
-	inline int Add(const char* ky) { // return -1 if the key already exists
+	inline int64_t Add(const char* ky) { // return -1 if the key already exists
 		int absent=-1;
 		khInt_t i=this->put(ky, &absent);
 		if (absent==1) {//key was actually added
@@ -164,7 +164,7 @@ template <class Hash=GHashKey_wyHash<const char*>, class Eq=GHashKey_Eq<const ch
 
 	inline const char* getLastKey() { return lastKey; }
 
-	int Remove(const char* ky) { //return index being removed, or -1 if no such key exists
+	int64_t Remove(const char* ky) { //return index being removed, or -1 if no such key exists
 		  khInt_t i=this->get(ky);
 		  if (i!=this->end()) {
 			  const char* s=this->key(i);
@@ -214,7 +214,7 @@ protected:
 	bool freeItems=false;
 public:
 	//---- these should be reimplemented for GHash
-	inline int Add(const K ky, const V val) { // if a key does not exist allocate a copy of the key
+	inline int64_t Add(const K ky, const V val) { // if a key does not exist allocate a copy of the key
 		// return -1 if the key already exists
 		int absent=-1;
 		khInt_t i=this->put(ky, &absent);
@@ -225,7 +225,7 @@ public:
 		return -1;
 	}
 	template <typename T=V> inline
-		typename std::enable_if< std::is_pointer<T>::value, int>::type
+		typename std::enable_if< std::is_pointer<T>::value, int64_t>::type
 			Remove(K ky) { //return index being removed
 		khInt_t i=this->get(ky);
 		  if (i!=this->end()) {
@@ -237,7 +237,7 @@ public:
 	}
 
 	template <typename T=V> inline
-		typename std::enable_if< !std::is_pointer<T>::value, int>::type
+		typename std::enable_if< !std::is_pointer<T>::value, int64_t>::type
 			Remove(K ky) { //return index being removed
 		  khInt_t i=this->get(ky);
 		  if (i!=this->end()) {
@@ -379,7 +379,7 @@ public:
 		return val;
 	}
 
-	inline uint32_t Count() { return this->count; }
+	inline int64_t Count() { return this->count; }
 
 };
 
@@ -395,7 +395,7 @@ public:
 		this->freeItems=doFree;
 	};
 	//---- these should be now reimplemented
-	inline int Add(const char* ky, const V val) { // if a key does not exist allocate a copy of the key
+	inline int64_t Add(const char* ky, const V val) { // if a key does not exist allocate a copy of the key
 		// return -1 if the key already exists
 		int absent=-1;
 		khInt_t i=this->put(ky, &absent);
@@ -412,7 +412,7 @@ public:
 	inline const char* getLastKey() { return lastKey; }
 
 	template <typename T=V> inline
-		typename std::enable_if< std::is_pointer<T>::value, int>::type
+		typename std::enable_if< std::is_pointer<T>::value, int64_t>::type
 	Remove(const char* ky) { //return index being removed
 		  khInt_t i=this->get(ky);
 		  if (i!=this->end()) {
@@ -427,7 +427,7 @@ public:
 	}
 
 	template <typename T=V> inline
-		typename std::enable_if< !std::is_pointer<T>::value, int>::type
+		typename std::enable_if< !std::is_pointer<T>::value, int64_t>::type
 	Remove(const char* ky) { //return index being removed
 		  khInt_t i=this->get(ky);
 		  if (i!=this->end()) {
@@ -477,6 +477,6 @@ public:
 };
 
 template<typename T>
- using GIntHash = GHashMap<int, T, GHashKey_xxHash32<int>, GHashKey_Eq<int>, uint32_t>;
+ using GIntHash = GHashMap<int64_t, T, GHashKey_xxHash<int64_t>, GHashKey_Eq<int64_t>, uint64_t>;
 
 #endif

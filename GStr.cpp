@@ -199,7 +199,7 @@ GStr::~GStr() {
   GFREE(readbuf);
   }
 
-char& GStr::operator[](int idx){
+char& GStr::operator[](int64_t idx){
 //returns reference to char (can be l-value)
   if (idx < 0) idx += length();
   if (idx < 0 || idx >= length()) invalid_index_error("operator[]");
@@ -207,7 +207,7 @@ char& GStr::operator[](int idx){
   return chrs()[idx];
   }
 
-char GStr::operator[](int idx) const {
+char GStr::operator[](int64_t idx) const {
 //returns char copy (cannot be l-value!)
   if (idx < 0) idx += length();
   if (idx < 0 || idx >= length()) invalid_index_error("operator[]");
@@ -372,7 +372,7 @@ GStr GStr::copy() const {
  return newstring;
  }
 
-int GStr::index(const GStr& s, int start_index) const {
+int64_t GStr::index(const GStr& s, int64_t start_index) const {
  return index(s.chars(), start_index);
  }
 
@@ -725,7 +725,7 @@ bool GStr::is_space() const {
 
 //=========================================
 
-GStr GStr::substr(int idx, int len) const {
+GStr GStr::substr(int64_t idx, int64_t len) const {
     // A negative idx specifies an idx from the right of the string.
     if (idx < 0)
         idx += length();
@@ -863,7 +863,7 @@ GStr&  GStr::replace(const char *rfrom, const char* rto) {
 
 
 
-GStr&  GStr::cut(int idx, int len) {
+GStr&  GStr::cut(int64_t idx, int64_t len) {
 
     if (len == 0)
         return *this;
@@ -892,7 +892,7 @@ GStr&  GStr::cut(int idx, int len) {
 
 //=========================================
 
-GStr&  GStr::paste(const GStr& s, int idx, int len) {
+GStr&  GStr::paste(const GStr& s, int64_t idx, int64_t len) {
     // A negative idx specifies an idx from the right of the string.
     if (idx < 0)
         idx += length();
@@ -922,7 +922,7 @@ GStr&  GStr::paste(const GStr& s, int idx, int len) {
 
 //=========================================
 
-GStr& GStr::paste(const char *s, int idx, int len) {
+GStr& GStr::paste(const char *s, int64_t idx, int64_t len) {
 
     // A negative idx specifies an idx from the right of the string.
     make_unique(); //edit operation ahead
@@ -936,7 +936,7 @@ GStr& GStr::paste(const char *s, int idx, int len) {
     if (idx<0 || idx>=length() || len<0 || len>length()-idx)
         invalid_args_error("replace()");
 
-    const int s_length = ::strlen(s);
+    const int64_t s_length = ::strlen(s);
 
     if (len == s_length && my_data->ref_count == 1)
         ::memcpy(&chrs()[idx], s, len);
@@ -955,7 +955,7 @@ GStr& GStr::paste(const char *s, int idx, int len) {
 
 //=========================================
 
-GStr& GStr::insert(const GStr& s, int idx) {
+GStr& GStr::insert(const GStr& s, int64_t idx) {
     make_unique(); //edit operation ahead
 
     // A negative idx specifies an idx from the right of the string.
@@ -979,7 +979,7 @@ GStr& GStr::insert(const GStr& s, int idx) {
 
 //=========================================
 
-GStr& GStr::insert(const char *s, int idx) {
+GStr& GStr::insert(const char *s, int64_t idx) {
     // A negative idx specifies an idx from the right of the string.
     make_unique(); //edit operation ahead
     if (idx < 0)
@@ -988,7 +988,7 @@ GStr& GStr::insert(const char *s, int idx) {
     if (idx < 0 || idx >= length())
         invalid_index_error("insert()");
 
-    const int s_length = ::strlen(s);
+    const int64_t s_length = ::strlen(s);
 
     if (s_length > 0) {
         Data *data = new_data(length() + s_length);
@@ -1058,7 +1058,7 @@ GStr& GStr::appendQuoted(const char* s, char q, bool onlyIfSpaced) {
 	return *this;
 }
 
-GStr& GStr::append(const char* s, int len) {
+GStr& GStr::append(const char* s, int64_t len) {
   make_unique(); //edit operation ahead
   //uint len=::strlen(s);
   int64_t newlen=len+my_data->length;
@@ -1075,7 +1075,7 @@ GStr& GStr::append(const char* s, int len) {
   }
   //strncpy(my_data->chars+my_data->length, s, len);
   newlen=my_data->length;
-  for (int i=0;s[i]!='\0' && i<len;++i) {
+  for (int64_t i=0;s[i]!='\0' && i<len;++i) {
 	my_data->chars[my_data->length+i]=s[i];
 	++newlen;
   }
@@ -1085,7 +1085,7 @@ GStr& GStr::append(const char* s, int len) {
 }
 
 
-GStr& GStr::appendmem(const char* m, int len) {
+GStr& GStr::appendmem(const char* m, int64_t len) {
   if (len<=0) return *this;
   make_unique(); //edit operation ahead
   int64_t newlen=len+my_data->length;
@@ -1133,7 +1133,7 @@ GStr& GStr::lower() {
 
 //=========================================
 
-int GStr::index(const char *s, int start_index) const {
+int64_t GStr::index(const char *s, int64_t start_index) const {
     // A negative index specifies an index from the right of the string.
     if (strlen(s)>(size_t)length()) return -1;
     if (start_index < 0)
@@ -1150,7 +1150,7 @@ int GStr::index(const char *s, int start_index) const {
 
 //=========================================
 
-int GStr::index(char c, int start_index) const {
+int64_t GStr::index(char c, int64_t start_index) const {
     // A negative index specifies an index from the right of the string.
     if (length()==0) return -1;
     if (start_index < 0)
@@ -1170,24 +1170,24 @@ int GStr::index(char c, int start_index) const {
         return idx - my_data->chars;
 }
 
-int GStr::rindex(char c, int end_index) const {
+int64_t GStr::rindex(char c, int64_t end_index) const {
     if (c == 0 || length()==0 || end_index>=length()) return -1;
     if (end_index<0) end_index=my_data->length-1;
-    for (int i=end_index;i>=0;i--) {
+    for (int64_t i=end_index;i>=0;i--) {
       if (my_data->chars[i]==c) return i;
       }
     return -1;
 }
 
-int GStr::rindex(const char* str, int end_index) const {
+int64_t GStr::rindex(const char* str, int64_t end_index) const {
     if (str==NULL || *str == '\0' || length()==0 || end_index>=length())
         return -1;
-    int slen=strlen(str);
+    int64_t slen=strlen(str);
     if (end_index<0) end_index=my_data->length-1;
     //end_index is the index of the right-side boundary
     //the scanning starts at the end
     if (end_index>=0 && end_index<slen-1) return -1;
-    for (int i=end_index-slen+1;i>=0;i--) {
+    for (int64_t i=end_index-slen+1;i>=0;i--) {
        if (memcmp((void*)(my_data->chars+i),(void*)str, slen)==0)
            return i;
        }
@@ -1202,7 +1202,7 @@ GStr GStr::split(const char* delim) {
                  as a new string!
            */
  GStr result;
- int i=index(delim);
+ int64_t i=index(delim);
  if (i>=0){
       result=substr(i+strlen(delim));
       cut(i);
@@ -1219,7 +1219,7 @@ GStr GStr::split(char c) {
                  as a new string!
            */
  GStr result;
- int i=index(c);
+ int64_t i=index(c);
  if (i>=0){
       result=substr(i+1);
       cut(i);
@@ -1230,7 +1230,7 @@ GStr GStr::split(char c) {
 
 GStr GStr::splitr(const char* delim) {
  GStr result;
- int i=rindex(delim);
+ int64_t i=rindex(delim);
  if (i>=0){
       result=substr(i+strlen(delim));
       cut(i);
@@ -1241,7 +1241,7 @@ GStr GStr::splitr(const char* delim) {
 
 GStr GStr::splitr(char c) {
  GStr result;
- int i=rindex(c);
+ int64_t i=rindex(c);
  if (i>=0){
       result=substr(i+1);
       cut(i);
@@ -1393,6 +1393,10 @@ int GStr::asInt(int base /*=10 */) {
  return strtol(text(), NULL, base);
 }
 
+int64_t GStr::asInt64(int base /*=10 */) {
+ return strtoll(text(), NULL, base);
+}
+
 bool GStr::asInt(int& r, int base) {
  errno=0;
  char*endptr;
@@ -1400,6 +1404,16 @@ bool GStr::asInt(int& r, int base) {
  if (errno!=0) return false;
  if (endptr == text()) return false;
  /* If we got here, strtol() successfully parsed a number */
+ r=val;
+ return true;
+}
+
+bool GStr::asInt64(int64_t& r, int base) {
+ errno=0;
+ char*endptr;
+ long long val=strtoll(text(), &endptr, base);
+ if (errno!=0) return false;
+ if (endptr == text()) return false;
  r=val;
  return true;
 }
@@ -1419,12 +1433,12 @@ bool GStr::asReal(double& r) {
 }
 
 
-int GStr::peelInt() const {
+int64_t GStr::peelInt() const {
  if (is_empty()) return 0;
  char buf[24];
  bool started=false;
- int j=0;
- int i;
+ int64_t j=0;
+ int64_t i;
  for (i=0;i<length();i++) {
   if (started) {
     if (isdigit(my_data->chars[i])) j++; //set coord
@@ -1443,12 +1457,12 @@ int GStr::peelInt() const {
  return 0;
 }
 
-int GStr::peelIntR() const {
+int64_t GStr::peelIntR() const {
  if (is_empty()) return 0;
  char buf[24];
  bool started=false;
- int j=0;
- int i;
+ int64_t j=0;
+ int64_t i;
  for (i=length()-1;i>=0;i--) {
   if (started) {
     if (isdigit(my_data->chars[i])) j++; //set length
@@ -1468,21 +1482,21 @@ int GStr::peelIntR() const {
 }
 
 GStr GStr::to(char c) { //return the first part up to first occurence of c
- int i=index(c);
+ int64_t i=index(c);
  if (i>=0) return substr(0,i);
       else return (*this);
 }
                            //or whole string if c not found
 GStr GStr::from(char c) { //same as to, but starting from the right side
- int i=rindex(c);
+ int64_t i=rindex(c);
  if (i>=0) return substr(i+1);
       else return (*this);
 }
 
-int GStr::count(char c){
+int64_t GStr::count(char c){
  //return the number of occurences of char c within the string
- int result=0;
- for (int i=0;i<length();i++)
+ int64_t result=0;
+ for (int64_t i=0;i<length();i++)
     if (my_data->chars[i]==c) result++;
  return result;
  }

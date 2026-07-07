@@ -38,8 +38,8 @@ class GStr {
         GStr(const char c, int n = 1);
         ~GStr();
         operator const char* () const { return my_data->chars;} //inline here
-        char& operator[](int index);
-        char operator[](int index) const;
+        char& operator[](int64_t index);
+        char operator[](int64_t index) const;
         GStr& assign(const char* s); //never shrinks the allocated space
         GStr& assign(const int v); //never shrinks the allocated space
         GStr& operator=(const GStr& s);
@@ -71,10 +71,10 @@ class GStr {
         GStr& operator+=(unsigned long l) { return append(l); }
         GStr& operator+=(double f);
       //interface:
-        int length() const;
+        int64_t length() const;
         bool is_empty() const;
         bool is_space() const;
-        GStr substr(int index = 0, int len = -1) const;
+        GStr substr(int64_t index = 0, int64_t len = -1) const;
         GStr to(char c); //return the first part up to first occurence of c
                            //or whole string if c not found
         GStr from(char c); //same as to, but starting from the right side
@@ -82,21 +82,21 @@ class GStr {
         GStr& format(const char *fmt,...);
         GStr& reverse();
         GStr& appendfmt(const char *fmt,...);
-        GStr& cut(int index = 0, int len = -1); //delete a specified length
-        GStr& remove(int from, int to) {
+        GStr& cut(int64_t index = 0, int64_t len = -1); //delete a specified length
+        GStr& remove(int64_t from, int64_t to) {
             return cut(from, to-from+1);
         }
 
         //paste a string at the specified position
-        GStr& paste(const GStr& s, int index = 0, int len=-1);
-        GStr& paste(const char* s, int index = 0, int len = -1);
+        GStr& paste(const GStr& s, int64_t index = 0, int64_t len=-1);
+        GStr& paste(const char* s, int64_t index = 0, int64_t len = -1);
         GStr& replace(const char* from, const char* to=NULL);
-        GStr& insert(const GStr& s, int index = 0);
-        GStr& insert(const char* s, int index = 0);
+        GStr& insert(const GStr& s, int64_t index = 0);
+        GStr& insert(const char* s, int64_t index = 0);
         GStr& append(const char* s);
         GStr& appendQuoted(const char* s, char q='"', bool onlyIfSpaced=false);
-        GStr& appendmem(const char* m, int len);
-        GStr& append(const char* m, int len); //same as appendmem but stops at '\0'
+        GStr& appendmem(const char* m, int64_t len);
+        GStr& append(const char* m, int64_t len); //same as appendmem but stops at '\0'
 
         GStr& append(const GStr& s);
         GStr& append(char c);
@@ -111,20 +111,22 @@ class GStr {
         //character translation or removal:
         GStr& tr(const char* from, const char* to=NULL);
         //number of occurences of a char in the string:
-        int count(char c);
+        int64_t count(char c);
         void startTokenize(const char* delimiter=" \t\n", enTokenizeMode tokenizemode=tkCharSet);
         bool nextToken(GStr& token);
         int asInt(int base=10);
+        int64_t asInt64(int base=10);
         double asReal();
         double asDouble() { return asReal(); }
         bool asReal(double& r);
         bool asDouble(double& r) { return asReal(r); }
         bool asInt(int& r, int base=10);
-        int index(const GStr& s, int start_index = 0) const;
-        int index(const char* s, int start_index = 0) const;
-        int index(char c, int start_index = 0) const;
-        int rindex(char c, int end_index = -1) const;
-        int rindex(const char* str, int end_index = -1) const;
+        bool asInt64(int64_t& r, int base=10);
+        int64_t index(const GStr& s, int64_t start_index = 0) const;
+        int64_t index(const char* s, int64_t start_index = 0) const;
+        int64_t index(char c, int64_t start_index = 0) const;
+        int64_t rindex(char c, int64_t end_index = -1) const;
+        int64_t rindex(const char* str, int64_t end_index = -1) const;
         bool contains(const GStr& s) const;
         bool contains(const char* s) const;
         bool contains(char c) const;
@@ -148,9 +150,9 @@ class GStr {
                  2nd will be returned
            */
 
-        int peelInt() const; //extract an integer, (left to right), from a
+        int64_t peelInt() const; //extract an integer, (left to right), from a
                 //mixed alphanumeric string, e.g. 'T24HC1234b'=> 2
-        int peelIntR() const; //same as above, but starts from the right side
+        int64_t peelIntR() const; //same as above, but starts from the right side
         //e.g. 'T2HC1234b'=> 1234
         GStr& trim(char c);
         GStr& trim(const char* c=" \t\n\r"); //trim both ends of characters in given set
@@ -171,7 +173,7 @@ class GStr {
         char* detach(); //returns pointer to the string, giving up on its memory management
     protected:
         char* fTokenDelimiter;
-        int fLastTokenStart;
+        int64_t fLastTokenStart;
         enTokenizeMode fTokenizeMode;
         void* readbuf; //file read buffer for the read() function
         size_t readbufsize; //last setting for the readbuf
@@ -198,7 +200,7 @@ class GStr {
 
 /***************************************************************************/
 
-inline int GStr::length() const {
+inline int64_t GStr::length() const {
  return my_data->length;
  }
 
